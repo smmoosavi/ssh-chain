@@ -10,6 +10,8 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "proxy-chain": "^2.7.1"
+    "ink": "^6.6.0",
+    "proxy-chain": "^2.7.1",
+    "react": "^19.2.3"
   }
 }
