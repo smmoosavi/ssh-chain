@@ -1,11 +1,13 @@
 /**
  * HTTP Proxy Server
  * Provides an HTTP/HTTPS proxy interface that forwards to the SSH SOCKS5 tunnel
+ * Emits events for extensibility via plugins
  */
 
 import ProxyChain from "proxy-chain";
 import type { Config } from "./config.ts";
 import type { SSHManager } from "./ssh-manager.ts";
+import { TypedEventEmitter, type ProxyServerEvents, type ProxyRequestInfo } from "./types.ts";
 
 /**
  * Check if a domain matches any pattern in the direct domains list
@@ -55,89 +57,15 @@ function shouldUseDirect(hostname: string, directDomains: string[]): boolean {
   return false;
 }
 
-export interface ProxyStats {
-  totalRequests: number;
-  totalBytesIn: number;
-  totalBytesOut: number;
-  activeConnections: number;
-  hostnameStats: Map<
-    string,
-    {
-      requests: number;
-      bytesIn: number;
-      bytesOut: number;
-      lastAccess: Date;
-    }
-  >;
-}
-
-export interface ProxyServerEvents {
-  onRequest?: (hostname: string, method: string, url: string) => void;
-  onConnect?: (hostname: string) => void;
-  onError?: (error: Error) => void;
-  onData?: (hostname: string, bytesIn: number, bytesOut: number) => void;
-}
-
-export class ProxyServer {
+export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
   private config: Config;
   private sshManager: SSHManager;
   private server: ProxyChain.Server | null = null;
-  private events: ProxyServerEvents;
-  private stats: ProxyStats = {
-    totalRequests: 0,
-    totalBytesIn: 0,
-    totalBytesOut: 0,
-    activeConnections: 0,
-    hostnameStats: new Map(),
-  };
 
-  constructor(
-    config: Config,
-    sshManager: SSHManager,
-    events: ProxyServerEvents = {}
-  ) {
+  constructor(config: Config, sshManager: SSHManager) {
+    super();
     this.config = config;
     this.sshManager = sshManager;
-    this.events = events;
-  }
-
-  /**
-   * Get current proxy statistics
-   */
-  getStats(): Readonly<ProxyStats> {
-    return {
-      ...this.stats,
-      hostnameStats: new Map(this.stats.hostnameStats),
-    };
-  }
-
-  /**
-   * Update stats for a hostname
-   */
-  private updateHostnameStats(
-    hostname: string,
-    bytesIn: number = 0,
-    bytesOut: number = 0
-  ): void {
-    const existing = this.stats.hostnameStats.get(hostname);
-
-    if (existing) {
-      existing.requests++;
-      existing.bytesIn += bytesIn;
-      existing.bytesOut += bytesOut;
-      existing.lastAccess = new Date();
-    } else {
-      this.stats.hostnameStats.set(hostname, {
-        requests: 1,
-        bytesIn,
-        bytesOut,
-        lastAccess: new Date(),
-      });
-    }
-
-    this.stats.totalRequests++;
-    this.stats.totalBytesIn += bytesIn;
-    this.stats.totalBytesOut += bytesOut;
   }
 
   /**
@@ -159,6 +87,25 @@ export class ProxyServer {
   }
 
   /**
+   * Extract port from URL or request
+   */
+  private extractPort(url: string, isHttps: boolean): number {
+    try {
+      // Handle CONNECT requests (hostname:port format)
+      if (url.includes(":") && !url.includes("://")) {
+        const parts = url.split(":");
+        return parseInt(parts[1] ?? (isHttps ? "443" : "80"), 10);
+      }
+
+      // Handle full URLs
+      const urlObj = new URL(url);
+      return urlObj.port ? parseInt(urlObj.port, 10) : (isHttps ? 443 : 80);
+    } catch {
+      return isHttps ? 443 : 80;
+    }
+  }
+
+  /**
    * Start the HTTP proxy server
    */
   async start(): Promise<void> {
@@ -168,9 +115,6 @@ export class ProxyServer {
       throw new Error("SSH SOCKS5 proxy is not running");
     }
 
-    console.log(`[Proxy] Starting HTTP proxy on port ${this.config.httpProxyPort}...`);
-    console.log(`[Proxy] Upstream SOCKS5: ${initialSocksUrl}`);
-
     this.server = new ProxyChain.Server({
       port: this.config.httpProxyPort,
       host: "127.0.0.1",
@@ -178,33 +122,28 @@ export class ProxyServer {
 
       prepareRequestFunction: ({ request, hostname, port, isHttp }) => {
         const targetHost = hostname || this.extractHostname(request.url || "");
+        const targetPort = port || this.extractPort(request.url || "", !isHttp);
 
         // Check if domain should bypass proxy
         const isDirect = shouldUseDirect(targetHost, this.config.directDomains);
 
-        // Log the request
-        const timestamp = new Date().toISOString().slice(11, 19);
         const method = request.method || "CONNECT";
-        const displayUrl = isHttp
-          ? request.url
-          : `${targetHost}:${port}`;
 
-        const directLabel = isDirect ? " [DIRECT]" : "";
-        console.log(`[${timestamp}] ${method} ${displayUrl}${directLabel}`);
-
-        // Update stats
-        this.updateHostnameStats(targetHost);
+        // Emit request event for plugins
+        const requestInfo: ProxyRequestInfo = {
+          hostname: targetHost,
+          port: targetPort,
+          method,
+          url: request.url || `${targetHost}:${targetPort}`,
+          isHttps: !isHttp,
+          isDirect,
+          timestamp: new Date(),
+        };
+        this.emit("request", requestInfo);
 
         // Notify activity to SSH manager (only for proxied requests)
         if (!isDirect) {
           this.sshManager.updateActivity();
-        }
-
-        // Fire events
-        if (isHttp) {
-          this.events.onRequest?.(targetHost, method, request.url || "");
-        } else {
-          this.events.onConnect?.(targetHost);
         }
 
         // If domain should go direct, return null to bypass proxy
@@ -218,7 +157,7 @@ export class ProxyServer {
         // Get current SOCKS URL (may change if SSH restarts)
         const currentSocksUrl = this.sshManager.getSocksUrl();
         if (!currentSocksUrl) {
-          console.error(`[Proxy] SSH SOCKS5 proxy not available`);
+          this.emit("error", new Error("SSH SOCKS5 proxy not available"), "prepareRequest");
           return { failMsg: "SSH SOCKS5 proxy not available" };
         }
 
@@ -239,32 +178,27 @@ export class ProxyServer {
       // misbehaving clients (like Microsoft telemetry) send direct HTTPS requests
       // instead of using the CONNECT method. This is expected and not actionable.
       if (error.message.includes("Only HTTP protocol is supported")) {
-        if (this.config.logLevel === "debug") {
-          console.warn(`[Proxy] Ignored malformed request: ${error.message}`);
-        }
         return;
       }
-      console.error(`[Proxy] Request failed: ${error.message}`);
-      this.events.onError?.(error);
+      this.emit("error", error, "requestFailed");
     });
 
     await this.server.listen();
 
-    console.log(`[Proxy] HTTP proxy listening on http://127.0.0.1:${this.config.httpProxyPort}`);
+    // Emit started event
+    this.emit("started", this.config.httpProxyPort, this.getProxyUrl());
   }
 
   /**
    * Stop the HTTP proxy server
    */
   async stop(): Promise<void> {
-    console.log("[Proxy] Stopping HTTP proxy server...");
-
     if (this.server) {
       await this.server.close(true);
       this.server = null;
     }
 
-    console.log("[Proxy] Stopped");
+    this.emit("stopped");
   }
 
   /**
@@ -275,20 +209,9 @@ export class ProxyServer {
   }
 
   /**
-   * Get top hostnames by request count
+   * Get the HTTP proxy port
    */
-  getTopHostnames(limit: number = 10): Array<{
-    hostname: string;
-    requests: number;
-    bytesIn: number;
-    bytesOut: number;
-  }> {
-    return Array.from(this.stats.hostnameStats.entries())
-      .map(([hostname, stats]) => ({
-        hostname,
-        ...stats,
-      }))
-      .sort((a, b) => b.requests - a.requests)
-      .slice(0, limit);
+  getPort(): number {
+    return this.config.httpProxyPort;
   }
 }

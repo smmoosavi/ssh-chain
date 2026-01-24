@@ -1,19 +1,12 @@
 /**
  * SSH SOCKS5 Proxy Manager
  * Spawns and manages SSH -D processes for SOCKS5 proxy tunnels
+ * Emits events for extensibility via plugins
  */
 
 import type { Config, SSHServerConfig } from "./config.ts";
 import type { Subprocess } from "bun";
-
-export interface SSHManagerEvents {
-  onReady?: (port: number) => void;
-  onError?: (error: Error) => void;
-  onExit?: (code: number | null) => void;
-  onData?: (bytes: number) => void;
-  onStdout?: (data: string) => void;
-  onStderr?: (data: string) => void;
-}
+import { TypedEventEmitter, type SSHManagerEvents } from "./types.ts";
 
 export interface SSHManagerState {
   isRunning: boolean;
@@ -24,10 +17,9 @@ export interface SSHManagerState {
   bytesTransferred: number;
 }
 
-export class SSHManager {
+export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
   private config: Config;
   private process: Subprocess | null = null;
-  private events: SSHManagerEvents;
   private state: SSHManagerState = {
     isRunning: false,
     currentPort: null,
@@ -40,9 +32,9 @@ export class SSHManager {
   private healthCheckTimer: ReturnType<typeof setInterval> | null = null;
   private inactivityCheckTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(config: Config, events: SSHManagerEvents = {}) {
+  constructor(config: Config) {
+    super();
     this.config = config;
-    this.events = events;
   }
 
   /**
@@ -196,7 +188,7 @@ export class SSHManager {
             if (done) break;
 
             const text = decoder.decode(value);
-            this.events.onStderr?.(text);
+            this.emit("stderr", text);
 
             // Check for activity indicators in SSH debug output
             if (
@@ -215,9 +207,8 @@ export class SSHManager {
 
     // Monitor process exit
     this.process.exited.then((code) => {
-      console.log(`[SSH] Process exited with code ${code}`);
       this.state.isRunning = false;
-      this.events.onExit?.(code);
+      this.emit("exit", code);
 
       if (this.state.currentPort) {
         this.usedPorts.delete(this.state.currentPort);
@@ -234,8 +225,6 @@ export class SSHManager {
   ): Promise<void> {
     const startTime = Date.now();
     const checkInterval = 500;
-
-    console.log(`[SSH] Waiting for SOCKS5 proxy to be ready on port ${port}...`);
 
     while (Date.now() - startTime < timeout) {
       // Check if process died
@@ -259,8 +248,7 @@ export class SSHManager {
         });
 
         // Connection successful, proxy is ready
-        console.log(`[SSH] SOCKS5 proxy ready on port ${port}`);
-        this.events.onReady?.(port);
+        this.emit("ready", port);
         return;
       } catch {
         // Not ready yet, wait and retry
@@ -276,9 +264,10 @@ export class SSHManager {
    */
   updateActivity(bytes: number = 0): void {
     this.state.lastActivity = new Date();
+    this.emit("activity");
     if (bytes > 0) {
       this.state.bytesTransferred += bytes;
-      this.events.onData?.(bytes);
+      this.emit("data", bytes);
     }
   }
 
@@ -295,9 +284,6 @@ export class SSHManager {
         const timeoutMs = this.config.inactivityTimeout * 1000;
 
         if (elapsed > timeoutMs) {
-          console.log(
-            `[SSH] Connection stalled (no activity for ${this.config.inactivityTimeout}s), restarting...`
-          );
           this.restart();
         }
       }, 5000);
@@ -326,8 +312,6 @@ export class SSHManager {
    * Stop the SSH process
    */
   async stop(): Promise<void> {
-    console.log("[SSH] Stopping SSH process...");
-
     this.stopHealthChecks();
 
     if (this.process) {
@@ -342,7 +326,6 @@ export class SSHManager {
       
       // Force kill if still running
       if (!this.process.killed) {
-        console.log("[SSH] Force killing process...");
         this.process.kill("SIGKILL");
         // Give it a brief moment to die
         await Promise.race([this.process.exited, new Promise(resolve => setTimeout(resolve, 500))]);
@@ -358,21 +341,17 @@ export class SSHManager {
     this.state.isRunning = false;
     this.state.currentPort = null;
     this.state.startTime = null;
-
-    console.log("[SSH] Stopped");
   }
 
   /**
    * Restart the SSH process
    */
   async restart(): Promise<void> {
-    console.log("[SSH] Restarting...");
     this.state.restartCount++;
+    this.emit("restart", this.state.restartCount);
 
     await this.stop();
     await Bun.sleep(1000); // Brief delay before restart
     await this.start();
-
-    console.log(`[SSH] Restarted (total restarts: ${this.state.restartCount})`);
   }
 }
