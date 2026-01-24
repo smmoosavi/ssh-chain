@@ -301,6 +301,10 @@ export class SSHManager {
           this.restart();
         }
       }, 5000);
+      // Unref so this timer doesn't prevent process exit
+      if (typeof this.inactivityCheckTimer.unref === 'function') {
+        this.inactivityCheckTimer.unref();
+      }
     }
   }
 
@@ -327,8 +331,23 @@ export class SSHManager {
     this.stopHealthChecks();
 
     if (this.process) {
-      this.process.kill();
-      await this.process.exited;
+      // Try graceful shutdown first (SIGTERM)
+      this.process.kill("SIGTERM");
+      
+      // Wait up to 2 seconds for graceful exit
+      const timeout = new Promise<void>(resolve => setTimeout(resolve, 2000));
+      const exited = this.process.exited.then(() => {});
+      
+      await Promise.race([exited, timeout]);
+      
+      // Force kill if still running
+      if (!this.process.killed) {
+        console.log("[SSH] Force killing process...");
+        this.process.kill("SIGKILL");
+        // Give it a brief moment to die
+        await Promise.race([this.process.exited, new Promise(resolve => setTimeout(resolve, 500))]);
+      }
+      
       this.process = null;
     }
 

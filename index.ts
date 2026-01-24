@@ -109,8 +109,20 @@ async function main() {
 
     console.log();
 
-    await proxyServer.stop();
-    await sshManager.stop();
+    // Add timeout to shutdown process (max 5 seconds)
+    const shutdownTimeout = setTimeout(() => {
+      console.log("[Main] Shutdown timeout reached, forcing exit...");
+      process.exit(1);
+    }, 5000);
+
+    try {
+      await proxyServer.stop();
+      await sshManager.stop();
+    } catch (error) {
+      console.error(`[Main] Error during shutdown: ${error}`);
+    } finally {
+      clearTimeout(shutdownTimeout);
+    }
 
     console.log("[Main] Goodbye!");
     process.exit(0);
