@@ -4,6 +4,7 @@
  * Emits events for extensibility via plugins
  */
 
+import { networkInterfaces } from "os";
 import ProxyChain from "proxy-chain";
 import type { Config } from "./config.ts";
 import type { SSHManager } from "./ssh-manager.ts";
@@ -206,6 +207,40 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
    */
   getProxyUrl(): string {
     return `http://${this.config.httpProxyHost}:${this.config.httpProxyPort}`;
+  }
+
+  /**
+   * Get all proxy URLs for clients to use
+   * When listening on 0.0.0.0, returns URLs for all network interfaces
+   */
+  getProxyUrls(): string[] {
+    const port = this.config.httpProxyPort;
+    const host = this.config.httpProxyHost;
+
+    // If not listening on all interfaces, return single URL
+    if (host !== "0.0.0.0") {
+      return [`http://${host}:${port}`];
+    }
+
+    // Get all network interfaces
+    const nets = networkInterfaces();
+    const urls: string[] = [];
+
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name] ?? []) {
+        // Skip non-IPv4 addresses
+        if (net.family === "IPv4") {
+          urls.push(`http://${net.address}:${port}`);
+        }
+      }
+    }
+
+    // Fallback to localhost if no interfaces found
+    if (urls.length === 0) {
+      urls.push(`http://127.0.0.1:${port}`);
+    }
+
+    return urls;
   }
 
   /**

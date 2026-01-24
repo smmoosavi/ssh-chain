@@ -138,6 +138,14 @@ export class App {
   }
 
   /**
+   * Get all proxy URLs for client configuration
+   * When listening on 0.0.0.0, returns URLs for all network interfaces
+   */
+  getProxyUrls(): string[] {
+    return this.proxyServer.getProxyUrls();
+  }
+
+  /**
    * Get session statistics (if stats plugin is registered)
    */
   getSessionStats(): {

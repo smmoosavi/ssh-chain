@@ -212,12 +212,17 @@ export class BannerPlugin implements ProxyPlugin {
   /**
    * Print running banner
    */
-  printRunningBanner(proxyUrl: string): void {
+  printRunningBanner(proxyUrls: string[]): void {
     console.log();
-    box(48)
+    const builder = box(48)
       .top()
-      .left("Proxy is running! Configure your apps to use:")
-      .left(proxyUrl)
+      .left("Proxy is running! Configure your apps to use:");
+    
+    for (const url of proxyUrls) {
+      builder.left(url);
+    }
+    
+    builder
       .empty()
       .left("Press Ctrl+C to stop")
       .bottom()

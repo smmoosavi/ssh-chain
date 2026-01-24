@@ -95,7 +95,7 @@ async function main() {
     await app.start();
 
     // Print running banner
-    bannerPlugin?.printRunningBanner(app.getProxyUrl());
+    bannerPlugin?.printRunningBanner(app.getProxyUrls());
   } catch (error) {
     console.error(`[Main] Startup failed: ${error}`);
     await app.stop();
