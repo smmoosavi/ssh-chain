@@ -14,19 +14,48 @@ import {
 } from "./config.ts";
 
 /**
+ * Zod schema for partial SSH server config (string or object)
+ */
+const PartialSSHServerSchema = z
+  .union([
+    z.string().min(1),
+    z.object({
+      host: z.string().min(1),
+      port: z.number().int().min(1).max(65535).optional(),
+      username: z.string().optional(),
+      identityFile: z.string().optional(),
+      options: z.array(z.string()).optional(),
+    }),
+  ])
+  .transform((value) => {
+    if (typeof value === "string") {
+      return { host: value };
+    }
+    return value;
+  });
+
+/**
+ * Zod schema for partial config that can be loaded from a source
+ */
+const PartialConfigSchema = z.object({
+  sshServer: PartialSSHServerSchema.optional(),
+  portRange: z.object({
+    min: z.number().int().min(1024).max(65535),
+    max: z.number().int().min(1024).max(65535),
+  }).optional(),
+  httpProxyHost: z.string().optional(),
+  httpProxyPort: z.number().int().min(1).max(65535).optional(),
+  inactivityTimeout: z.number().int().min(1).optional(),
+  healthCheckInterval: z.number().int().min(1).optional(),
+  retryAttempts: z.number().int().min(0).optional(),
+  logLevel: LogLevelSchema.optional(),
+  directDomains: z.array(z.string()).optional(),
+}).partial();
+
+/**
  * Partial config that can be loaded from a source
  */
-export interface PartialConfig {
-  sshServer?: { host: string; port?: number; username?: string; identityFile?: string; options?: string[] };
-  portRange?: { min: number; max: number };
-  httpProxyHost?: string;
-  httpProxyPort?: number;
-  inactivityTimeout?: number;
-  healthCheckInterval?: number;
-  retryAttempts?: number;
-  logLevel?: "debug" | "info" | "warn" | "error";
-  directDomains?: string[];
-}
+export type PartialConfig = z.infer<typeof PartialConfigSchema>;
 
 /**
  * Interface for config loaders
@@ -88,77 +117,19 @@ export class FileConfigLoader implements ConfigLoader {
     try {
       const content = await file.text();
       const rawConfig = JSON.parse(content);
-      return this.parseConfig(rawConfig);
+      return PartialConfigSchema.parse(rawConfig);
     } catch (error) {
       if (error instanceof SyntaxError) {
         throw new Error(`Invalid JSON in configuration file: ${error.message}`);
       }
+      if (error instanceof z.ZodError) {
+        const issues = error.issues
+          .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
+          .join("\n");
+        throw new Error(`Configuration validation failed:\n${issues}`);
+      }
       throw error;
     }
-  }
-
-  private parseConfig(raw: unknown): PartialConfig {
-    if (typeof raw !== "object" || raw === null) {
-      throw new Error("Configuration must be an object");
-    }
-
-    const config: PartialConfig = {};
-    const obj = raw as Record<string, unknown>;
-
-    // Parse sshServer
-    if (obj.sshServer !== undefined) {
-      if (typeof obj.sshServer === "string") {
-        config.sshServer = { host: obj.sshServer };
-      } else if (typeof obj.sshServer === "object" && obj.sshServer !== null) {
-        const ssh = obj.sshServer as Record<string, unknown>;
-        config.sshServer = {
-          host: String(ssh.host ?? ""),
-          ...(ssh.port !== undefined && { port: Number(ssh.port) }),
-          ...(ssh.username !== undefined && { username: String(ssh.username) }),
-          ...(ssh.identityFile !== undefined && { identityFile: String(ssh.identityFile) }),
-          ...(ssh.options !== undefined && { options: ssh.options as string[] }),
-        };
-      }
-    }
-
-    // Parse other fields
-    if (obj.portRange !== undefined) {
-      const pr = obj.portRange as Record<string, unknown>;
-      config.portRange = {
-        min: Number(pr.min ?? 10000),
-        max: Number(pr.max ?? 10100),
-      };
-    }
-
-    if (obj.httpProxyHost !== undefined) {
-      config.httpProxyHost = String(obj.httpProxyHost);
-    }
-
-    if (obj.httpProxyPort !== undefined) {
-      config.httpProxyPort = Number(obj.httpProxyPort);
-    }
-
-    if (obj.inactivityTimeout !== undefined) {
-      config.inactivityTimeout = Number(obj.inactivityTimeout);
-    }
-
-    if (obj.healthCheckInterval !== undefined) {
-      config.healthCheckInterval = Number(obj.healthCheckInterval);
-    }
-
-    if (obj.retryAttempts !== undefined) {
-      config.retryAttempts = Number(obj.retryAttempts);
-    }
-
-    if (obj.logLevel !== undefined) {
-      config.logLevel = obj.logLevel as PartialConfig["logLevel"];
-    }
-
-    if (obj.directDomains !== undefined) {
-      config.directDomains = obj.directDomains as string[];
-    }
-
-    return config;
   }
 }
 
@@ -198,6 +169,16 @@ export class ArgvConfigLoader implements ConfigLoader {
 }
 
 /**
+ * Zod schema for environment variable parsing
+ */
+const EnvConfigSchema = z.object({
+  sshServer: z.string().min(1).transform((v) => ({ host: v })).optional(),
+  httpProxyHost: z.string().min(1).optional(),
+  httpProxyPort: z.coerce.number().int().min(1).max(65535).optional(),
+  logLevel: LogLevelSchema.optional(),
+});
+
+/**
  * Load configuration from environment variables
  */
 export class EnvConfigLoader implements ConfigLoader {
@@ -210,29 +191,22 @@ export class EnvConfigLoader implements ConfigLoader {
   }
 
   async load(): Promise<PartialConfig> {
-    const config: PartialConfig = {};
+    const rawEnv: Record<string, unknown> = {};
 
     const sshServer = process.env[`${this.prefix}SSH_SERVER`];
-    if (sshServer) {
-      config.sshServer = { host: sshServer };
-    }
+    if (sshServer) rawEnv.sshServer = sshServer;
 
     const httpProxyHost = process.env[`${this.prefix}HTTP_PROXY_HOST`];
-    if (httpProxyHost) {
-      config.httpProxyHost = httpProxyHost;
-    }
+    if (httpProxyHost) rawEnv.httpProxyHost = httpProxyHost;
 
     const httpProxyPort = process.env[`${this.prefix}HTTP_PROXY_PORT`];
-    if (httpProxyPort) {
-      config.httpProxyPort = parseInt(httpProxyPort, 10);
-    }
+    if (httpProxyPort) rawEnv.httpProxyPort = httpProxyPort;
 
     const logLevel = process.env[`${this.prefix}LOG_LEVEL`];
-    if (logLevel && ["debug", "info", "warn", "error"].includes(logLevel)) {
-      config.logLevel = logLevel as PartialConfig["logLevel"];
-    }
+    if (logLevel) rawEnv.logLevel = logLevel;
 
-    return config;
+    const result = EnvConfigSchema.safeParse(rawEnv);
+    return result.success ? result.data : {};
   }
 }
 
