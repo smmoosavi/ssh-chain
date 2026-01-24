@@ -73,6 +73,8 @@ const ConfigSchema = z.object({
   retryAttempts: z.number().int().min(0).optional().default(3),
   /** Logging level */
   logLevel: LogLevelSchema.optional().default("info"),
+  /** List of domains that should bypass the proxy (support wildcards) */
+  directDomains: z.array(z.string()).optional().default(["localhost", "*.local"]),
 });
 
 // Partial config schema for file loading (sshServer is optional, can come from args)
@@ -91,6 +93,8 @@ const PartialConfigSchema = z.object({
   retryAttempts: z.number().int().min(0).optional().default(3),
   /** Logging level */
   logLevel: LogLevelSchema.optional().default("info"),
+  /** List of domains that should bypass the proxy (support wildcards) */
+  directDomains: z.array(z.string()).optional().default([]),
 });
 
 // Export inferred types from schemas
@@ -173,6 +177,7 @@ export async function resolveConfig(args: ParsedArgs): Promise<Config> {
     healthCheckInterval: fileConfig?.healthCheckInterval ?? 30,
     retryAttempts: fileConfig?.retryAttempts ?? 3,
     logLevel: args.logLevel ?? fileConfig?.logLevel ?? "info",
+    directDomains: fileConfig?.directDomains ?? [],
   };
 
   return ConfigSchema.parse(mergedConfig);

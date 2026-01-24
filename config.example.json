@@ -36,5 +36,14 @@
   "_retryAttempts_comment": "Number of restart attempts before giving up (default: 3)",
 
   "logLevel": "info",
-  "_logLevel_comment": "Log level: debug, info, warn, error (default: info)"
+  "_logLevel_comment": "Log level: debug, info, warn, error (default: info)",
+
+  "directDomains": [
+    "foo.example.com",
+    "*.my-company.com",
+    "localhost",
+    "foo-bar",
+    "*.local"
+  ],
+  "_directDomains_comment": "List of domains that bypass the proxy (go direct). Supports wildcards: '*.example.com' matches subdomains, 'foo-bar' matches exact hostname, '*.us' matches all .us domains"
 }

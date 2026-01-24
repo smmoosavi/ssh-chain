@@ -77,4 +77,27 @@ The only required configuration is `sshServer`, which can be provided:
 
 Command-line arguments have higher priority than config file values.
 
+### Direct Domains (Bypass Proxy)
+
+You can configure domains that should bypass the proxy and connect directly. Add them to the `directDomains` array in your config file:
+
+```json
+{
+  "directDomains": [
+    "foo.example.com",
+    "*.my-company.com",
+    "foo-bar",
+    "*.us"
+  ]
+}
+```
+
+**Wildcard Support:**
+- **Exact match**: `foo.example.com` - only matches this exact domain
+- **Subdomain wildcard**: `*.my-company.com` - matches any subdomain like `api.my-company.com`, `dev.api.my-company.com`, and the apex domain `my-company.com`
+- **No TLD**: `foo-bar` - matches simple hostnames without a TLD
+- **TLD wildcard**: `*.us` - matches all domains ending in `.us` (e.g., `example.us`, `api.example.us`)
+
+Direct connections are labeled with `[DIRECT]` in the logs.
+
 This project was created using `bun init` in bun v1.3.1. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.

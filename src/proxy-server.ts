@@ -7,6 +7,54 @@ import ProxyChain from "proxy-chain";
 import type { Config } from "./config.ts";
 import type { SSHManager } from "./ssh-manager.ts";
 
+/**
+ * Check if a domain matches any pattern in the direct domains list
+ * Supports wildcards:
+ * - *.example.com matches any subdomain of example.com
+ * - foo-bar matches exact hostname (no TLD required)
+ * - *.us matches all domains ending in .us TLD
+ * - foo.example.com matches exact domain
+ */
+function shouldUseDirect(hostname: string, directDomains: string[]): boolean {
+  if (directDomains.length === 0) {
+    return false;
+  }
+
+  for (const pattern of directDomains) {
+    // Exact match
+    if (pattern === hostname) {
+      return true;
+    }
+
+    // Wildcard pattern
+    if (pattern.startsWith("*.")) {
+      const suffix = pattern.slice(1); // Remove * but keep the dot
+      // Match if hostname ends with the suffix (e.g., .example.com)
+      if (hostname.endsWith(suffix)) {
+        return true;
+      }
+      // Also match the domain itself without subdomain (e.g., example.com for *.example.com)
+      if (hostname === suffix.slice(1)) {
+        return true;
+      }
+    } else if (pattern.startsWith("*")) {
+      // Handle patterns like *.us (without dot after *)
+      const suffix = pattern.slice(1);
+      if (hostname.endsWith(suffix)) {
+        return true;
+      }
+    } else {
+      // For patterns without wildcards, also match if it's a simple hostname (no dots)
+      // This handles cases like "foo-bar" which should only match "foo-bar"
+      if (pattern === hostname) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 export interface ProxyStats {
   totalRequests: number;
   totalBytesIn: number;
@@ -131,6 +179,9 @@ export class ProxyServer {
       prepareRequestFunction: ({ request, hostname, port, isHttp }) => {
         const targetHost = hostname || this.extractHostname(request.url || "");
 
+        // Check if domain should bypass proxy
+        const isDirect = shouldUseDirect(targetHost, this.config.directDomains);
+
         // Log the request
         const timestamp = new Date().toISOString().slice(11, 19);
         const method = request.method || "CONNECT";
@@ -138,19 +189,30 @@ export class ProxyServer {
           ? request.url
           : `${targetHost}:${port}`;
 
-        console.log(`[${timestamp}] ${method} ${displayUrl}`);
+        const directLabel = isDirect ? " [DIRECT]" : "";
+        console.log(`[${timestamp}] ${method} ${displayUrl}${directLabel}`);
 
         // Update stats
         this.updateHostnameStats(targetHost);
 
-        // Notify activity to SSH manager
-        this.sshManager.updateActivity();
+        // Notify activity to SSH manager (only for proxied requests)
+        if (!isDirect) {
+          this.sshManager.updateActivity();
+        }
 
         // Fire events
         if (isHttp) {
           this.events.onRequest?.(targetHost, method, request.url || "");
         } else {
           this.events.onConnect?.(targetHost);
+        }
+
+        // If domain should go direct, return null to bypass proxy
+        if (isDirect) {
+          return {
+            upstreamProxyUrl: undefined,
+            requestAuthentication: false,
+          };
         }
 
         // Get current SOCKS URL (may change if SSH restarts)
