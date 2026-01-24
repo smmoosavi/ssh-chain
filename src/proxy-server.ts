@@ -168,20 +168,9 @@ export class ProxyServer {
       },
     });
 
-    // Listen for connection events
-    this.server.on("connectionClosed", ({ stats }) => {
-      if (stats) {
-        const bytesIn = stats.srcRxBytes || 0;
-        const bytesOut = stats.srcTxBytes || 0;
-
-        // Update total stats
-        this.stats.totalBytesIn += bytesIn;
-        this.stats.totalBytesOut += bytesOut;
-
-        // Notify SSH manager of data activity
-        this.sshManager.updateActivity(bytesIn + bytesOut);
-      }
-    });
+    // Note: connectionClosed event doesn't fire reliably for SOCKS5 tunneled HTTPS
+    // connections, so byte tracking is not available with this architecture.
+    // We only track request counts per hostname.
 
     this.server.on("requestFailed", ({ error }) => {
       console.error(`[Proxy] Request failed: ${error.message}`);

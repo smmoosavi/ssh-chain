@@ -61,13 +61,19 @@ async function main() {
 
     // Print final stats
     const stats = proxyServer.getStats();
+    const sshState = sshManager.getState();
+    const uptime = sshState.startTime
+      ? Math.floor((Date.now() - sshState.startTime.getTime()) / 1000)
+      : 0;
+    const uptimeStr = `${Math.floor(uptime / 60)}m ${uptime % 60}s`;
+
     console.log();
-    console.log("╔═══════════════ Session Stats ═══════════════╗");
-    console.log(`║ Total Requests: ${stats.totalRequests.toString().padStart(25)} ║`);
-    console.log(`║ Data In:  ${formatBytes(stats.totalBytesIn).padStart(30)} ║`);
-    console.log(`║ Data Out: ${formatBytes(stats.totalBytesOut).padStart(30)} ║`);
-    console.log(`║ SSH Restarts: ${sshManager.getState().restartCount.toString().padStart(27)} ║`);
-    console.log("╚══════════════════════════════════════════════╝");
+    console.log("╔════════════════════ Session Stats ═══════════════════╗");
+    console.log(`║ Total Requests:  ${stats.totalRequests.toString().padStart(35)} ║`);
+    console.log(`║ Unique Hosts:    ${stats.hostnameStats.size.toString().padStart(35)} ║`);
+    console.log(`║ Session Uptime:  ${uptimeStr.padStart(35)} ║`);
+    console.log(`║ SSH Restarts:    ${sshState.restartCount.toString().padStart(35)} ║`);
+    console.log("╚══════════════════════════════════════════════════════╝");
 
     // Show top hostnames
     const topHosts = proxyServer.getTopHostnames(5);
@@ -75,7 +81,7 @@ async function main() {
       console.log();
       console.log("Top Hostnames:");
       for (const host of topHosts) {
-        console.log(`  ${host.hostname}: ${host.requests} requests, ${formatBytes(host.bytesIn + host.bytesOut)}`);
+        console.log(`  ${host.hostname}: ${host.requests} requests`);
       }
     }
 
@@ -102,12 +108,12 @@ async function main() {
 
     // Print usage info
     console.log();
-    console.log("╔═══════════════════════════════════════════════╗");
+    console.log("╔════════════════════════════════════════════════╗");
     console.log("║  Proxy is running! Configure your apps to use: ║");
-    console.log(`║  ${proxyServer.getProxyUrl().padEnd(43)} ║`);
-    console.log("║                                               ║");
-    console.log("║  Press Ctrl+C to stop                         ║");
-    console.log("╚═══════════════════════════════════════════════╝");
+    console.log(`║  ${proxyServer.getProxyUrl().padEnd(45)} ║`);
+    console.log("║                                                ║");
+    console.log("║  Press Ctrl+C to stop                          ║");
+    console.log("╚════════════════════════════════════════════════╝");
     console.log();
   } catch (error) {
     console.error(`[Main] Startup failed: ${error}`);
