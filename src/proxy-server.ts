@@ -235,6 +235,15 @@ export class ProxyServer {
     // We only track request counts per hostname.
 
     this.server.on("requestFailed", ({ error }) => {
+      // Filter out "Only HTTP protocol is supported" errors - these occur when
+      // misbehaving clients (like Microsoft telemetry) send direct HTTPS requests
+      // instead of using the CONNECT method. This is expected and not actionable.
+      if (error.message.includes("Only HTTP protocol is supported")) {
+        if (this.config.logLevel === "debug") {
+          console.warn(`[Proxy] Ignored malformed request: ${error.message}`);
+        }
+        return;
+      }
       console.error(`[Proxy] Request failed: ${error.message}`);
       this.events.onError?.(error);
     });
