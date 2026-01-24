@@ -3,24 +3,46 @@
  * Main entry point - loads config, starts SSH tunnel, and HTTP proxy
  */
 
-import { loadConfig } from "./src/config.ts";
+import { resolveConfig } from "./src/config.ts";
+import { parseArgv, printHelp, printVersion } from "./src/args.ts";
 import { SSHManager } from "./src/ssh-manager.ts";
 import { ProxyServer } from "./src/proxy-server.ts";
 
 async function main() {
+  // Parse command-line arguments
+  let args;
+  try {
+    args = parseArgv();
+  } catch (error) {
+    console.error(`Error: ${error instanceof Error ? error.message : error}`);
+    console.error("\nRun 'ssh-chain --help' for usage information.");
+    process.exit(1);
+  }
+
+  // Handle help and version flags
+  if (args.help) {
+    printHelp();
+    process.exit(0);
+  }
+
+  if (args.version) {
+    printVersion();
+    process.exit(0);
+  }
+
   console.log("╔════════════════════════════════════════╗");
   console.log("║       SSH Chain Proxy Manager          ║");
   console.log("╚════════════════════════════════════════╝");
   console.log();
 
-  // Load configuration
+  // Load configuration (merges config file with command-line args)
   console.log("[Main] Loading configuration...");
   let config;
   try {
-    config = await loadConfig("./config.json");
+    config = await resolveConfig(args);
     console.log(`[Main] Config loaded: SSH ${config.sshServer.host}, HTTP proxy :${config.httpProxyPort}`);
   } catch (error) {
-    console.error(`[Main] Failed to load config: ${error}`);
+    console.error(`[Main] Failed to load config: ${error instanceof Error ? error.message : error}`);
     process.exit(1);
   }
 

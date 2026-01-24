@@ -3,6 +3,7 @@
  */
 
 import { z } from "zod";
+import type { ParsedArgs } from "./args.ts";
 
 // SSH Server configuration schema (full object format)
 const SSHServerObjectSchema = z.object({
@@ -23,6 +24,18 @@ const SSHServerObjectSchema = z.object({
 const SSHServerSchema = z
   .union([z.string().min(1), SSHServerObjectSchema])
   .transform((value): z.infer<typeof SSHServerObjectSchema> => {
+    if (typeof value === "string") {
+      return { host: value };
+    }
+    return value;
+  });
+
+// Optional SSH server schema for config file (can be overridden by args)
+const OptionalSSHServerSchema = z
+  .union([z.string().min(1), SSHServerObjectSchema])
+  .optional()
+  .transform((value): z.infer<typeof SSHServerObjectSchema> | undefined => {
+    if (value === undefined) return undefined;
     if (typeof value === "string") {
       return { host: value };
     }
@@ -62,13 +75,111 @@ const ConfigSchema = z.object({
   logLevel: LogLevelSchema.optional().default("info"),
 });
 
+// Partial config schema for file loading (sshServer is optional, can come from args)
+const PartialConfigSchema = z.object({
+  /** SSH server configuration (optional if provided via CLI) */
+  sshServer: OptionalSSHServerSchema,
+  /** Port range for dynamic SOCKS5 proxy allocation */
+  portRange: PortRangeSchema.default({ min: 10000, max: 10100 }),
+  /** Port for the HTTP proxy server to listen on */
+  httpProxyPort: z.number().int().min(1).max(65535).default(4080),
+  /** Duration of no data flow before considering connection stalled (seconds) */
+  inactivityTimeout: z.number().int().min(1).default(60),
+  /** Health check interval in seconds */
+  healthCheckInterval: z.number().int().min(1).optional().default(30),
+  /** Number of retry attempts before giving up */
+  retryAttempts: z.number().int().min(0).optional().default(3),
+  /** Logging level */
+  logLevel: LogLevelSchema.optional().default("info"),
+});
+
 // Export inferred types from schemas
 export type SSHServerConfig = z.infer<typeof SSHServerObjectSchema>;
 export type PortRangeConfig = z.infer<typeof PortRangeSchema>;
 export type Config = z.infer<typeof ConfigSchema>;
 
 /**
- * Loads configuration from a JSON file
+ * Loads configuration from a JSON file (partial config, sshServer optional)
+ */
+export async function loadConfigFile(
+  configPath: string
+): Promise<z.infer<typeof PartialConfigSchema>> {
+  const file = Bun.file(configPath);
+
+  if (!(await file.exists())) {
+    throw new Error(`Configuration file not found: ${configPath}`);
+  }
+
+  try {
+    const content = await file.text();
+    const rawConfig = JSON.parse(content);
+    return PartialConfigSchema.parse(rawConfig);
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error(`Invalid JSON in configuration file: ${error.message}`);
+    }
+    if (error instanceof z.ZodError) {
+      const issues = error.issues
+        .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
+        .join("\n");
+      throw new Error(`Configuration validation failed:\n${issues}`);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Resolves final configuration from args and optional config file
+ * Args have higher priority than config file values
+ */
+export async function resolveConfig(args: ParsedArgs): Promise<Config> {
+  // Try to load config file if specified or if default exists
+  let fileConfig: z.infer<typeof PartialConfigSchema> | undefined;
+  const configPath = args.configPath ?? "./config.json";
+
+  try {
+    const file = Bun.file(configPath);
+    if (await file.exists()) {
+      fileConfig = await loadConfigFile(configPath);
+    } else if (args.configPath) {
+      // Config file was explicitly specified but doesn't exist
+      throw new Error(`Configuration file not found: ${args.configPath}`);
+    }
+  } catch (error) {
+    // Re-throw if config was explicitly specified
+    if (args.configPath) {
+      throw error;
+    }
+    // Ignore if default config doesn't exist
+  }
+
+  // Determine SSH server (args take priority)
+  const sshServer = args.sshServer ?? fileConfig?.sshServer?.host;
+  if (!sshServer) {
+    throw new Error(
+      "SSH server is required. Provide it as an argument or in the config file.\n" +
+        "Usage: ssh-chain <ssh-server> or ssh-chain -c <config-file>"
+    );
+  }
+
+  // Build merged config with args having higher priority
+  const mergedConfig = {
+    sshServer: args.sshServer
+      ? { host: args.sshServer }
+      : fileConfig?.sshServer ?? { host: sshServer },
+    portRange: fileConfig?.portRange ?? { min: 10000, max: 10100 },
+    httpProxyPort: args.httpProxyPort ?? fileConfig?.httpProxyPort ?? 4080,
+    inactivityTimeout: fileConfig?.inactivityTimeout ?? 60,
+    healthCheckInterval: fileConfig?.healthCheckInterval ?? 30,
+    retryAttempts: fileConfig?.retryAttempts ?? 3,
+    logLevel: args.logLevel ?? fileConfig?.logLevel ?? "info",
+  };
+
+  return ConfigSchema.parse(mergedConfig);
+}
+
+/**
+ * Loads configuration from a JSON file (legacy, requires sshServer)
  */
 export async function loadConfig(
   configPath: string = "./config.json"
