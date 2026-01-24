@@ -1,20 +1,98 @@
-# what this project is
+# SSH Chain Proxy Manager
 
-I use ssh -D to create a SOCKS5 proxy on my local machine that tunnels traffic through a remote server. Sometimes it stucks and I have to restart the ssh manually. This project will help me to start ssh -D and detect ssh stuck automatically. it provides a http proxy server that forwards requests to the SOCKS5 proxy. If no data is passed through the SOCKS5 proxy for a certain period of time, the ssh process will be killed and restarted.
+## Overview
 
-it will read configs from a config file
+A smart proxy management tool that automatically maintains an HTTP proxy backed by SSH SOCKS5 tunnels. The tool monitors proxy health, automatically restarts stalled connections, and provides real-time visibility into proxy performance.
 
-- ssh server
-- port range that can be used for ssh proxy
-- port that it provides for http proxy
+## Problem Statement
 
-It also show usefull information about data passed
+When using `ssh -D` to create SOCKS5 proxies for tunneling traffic through remote servers, connections occasionally stall and require manual intervention. This project automates the monitoring and recovery process.
 
-- chart of how much is used in few minutes ago
-- chart of how good ssh connection is
-- total usage
-- more (@ai add what you think is it good)
+## Core Functionality
 
-It use bun to run
-It use ink (react) to show
-it use proxy-chain npm package
+### Automatic SSH Management
+
+- Spawns and manages `ssh -D` processes to create SOCKS5 proxies
+- Monitors data flow through the proxy connection
+- Detects stalled connections based on inactivity timeout
+- Automatically kills and restarts hung SSH processes
+- Handles port allocation from configured range
+
+### HTTP Proxy Server
+
+- Provides an HTTP/HTTPS proxy interface on a configured port
+- Forwards all requests to the underlying SOCKS5 proxy
+- Maintains connection persistence and proper error handling
+- Logs all proxied hostnames in real-time to the terminal
+- Tracks and aggregates data usage per hostname
+
+## Configuration
+
+The application reads from a configuration file with the following parameters:
+
+### Required Settings
+
+- **SSH Server**: Hostname/IP and authentication details
+  - Host
+  - Port (default: 22)
+  - Username
+  - Authentication method (key/password)
+  - SSH options (e.g., KeepAlive, compression)
+  - If user has a configured .ssh/config file, it may be a single Host entry without port, user, ... (e.g., myserver)
+- **Port Range**: Available ports for dynamic SOCKS5 proxy allocation
+  - Min port
+  - Max port
+- **HTTP Proxy Port**: Port for the HTTP proxy server to listen on
+- **Inactivity Timeout**: Duration of no data flow before considering connection stalled (in seconds)
+
+### Optional Settings
+
+- Logging level and output directory
+- Retry attempts and backoff strategy
+- Health check interval
+
+## User Interface
+
+Interactive terminal UI using Ink (React for CLI) displaying:
+
+### Real-Time Metrics
+
+- **Current Status**: Connection state, uptime, current ports
+- **Bandwidth Graph**: Visual chart of data throughput over the last 5-10 minutes
+- **Connection Health**: Latency, packet loss, connection quality indicators
+- **Total Statistics**:
+  - Total data transferred (upload/download)
+  - Session count and duration
+  - Restart count and reasons
+  - Average connection quality
+
+### Additional UI Features
+
+- **Recent Activity Log**: Last 10-20 proxy requests with timestamps
+- **Hostname Log Stream**: Real-time display of proxied hostnames as they're accessed
+- **Per-Hostname Statistics**: Aggregate data usage breakdown by hostname
+  - Data transferred (upload/download) per host
+  - Request count per host
+  - Sort by usage, frequency, or alphabetically
+- **Alert Notifications**: Connection failures, restarts, errors
+- **Performance Indicators**: CPU and memory usage of proxy processes
+- **Network Quality Score**: Derived from latency, stability, and throughput
+- **Quick Actions**: Manual restart, pause/resume, configuration reload
+
+## Technical Stack
+
+- **Runtime**: Bun
+- **UI Framework**: Ink (React for terminal)
+- **Proxy Library**: proxy-chain npm package
+- **SSH Management**: Node.js child_process for ssh command execution
+- **Data Monitoring**: Stream interceptors to track data flow
+- **typeScript**: For type safety and maintainability
+
+## Implementation Phases
+
+1. **Phase 1**: Configuration file parsing and validation
+1. **Phase 2**: Basic SSH process management and restart logic
+1. **Phase 3**: HTTP to SOCKS5 proxy forwarding
+1. **Phase 4**: Terminal UI with basic metrics
+1. **Phase 5**: Advanced monitoring and analytics
+1. **Phase 6**: Error handling and logging improvements
