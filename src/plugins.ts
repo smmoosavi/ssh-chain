@@ -7,6 +7,7 @@ import type { Config } from "./config.ts";
 import type { ProxyPlugin, PluginContext, ProxyRequestInfo, ProxyServerEvents, SSHManagerEvents } from "./types.ts";
 import type { ProxyServer } from "./proxy-server.ts";
 import type { SSHManager, SSHManagerState } from "./ssh-manager.ts";
+import { box, statsBox, centeredBox } from "./box-utils.ts";
 
 /**
  * Statistics tracking for proxy requests
@@ -200,9 +201,11 @@ export class BannerPlugin implements ProxyPlugin {
    * Print startup banner
    */
   printStartupBanner(): void {
-    console.log("╔════════════════════════════════════════╗");
-    console.log(`║       ${this.title.padEnd(31)} ║`);
-    console.log("╚════════════════════════════════════════╝");
+    box(40)
+      .top()
+      .center(this.title)
+      .bottom()
+      .print();
     console.log();
   }
 
@@ -211,12 +214,14 @@ export class BannerPlugin implements ProxyPlugin {
    */
   printRunningBanner(proxyUrl: string): void {
     console.log();
-    console.log("╔════════════════════════════════════════════════╗");
-    console.log("║  Proxy is running! Configure your apps to use: ║");
-    console.log(`║  ${proxyUrl.padEnd(45)} ║`);
-    console.log("║                                                ║");
-    console.log("║  Press Ctrl+C to stop                          ║");
-    console.log("╚════════════════════════════════════════════════╝");
+    box(48)
+      .top()
+      .left("Proxy is running! Configure your apps to use:")
+      .left(proxyUrl)
+      .empty()
+      .left("Press Ctrl+C to stop")
+      .bottom()
+      .print();
     console.log();
   }
 
@@ -230,12 +235,16 @@ export class BannerPlugin implements ProxyPlugin {
     restarts: number;
   }): void {
     console.log();
-    console.log("╔════════════════════ Session Stats ═══════════════════╗");
-    console.log(`║ Total Requests:  ${stats.totalRequests.toString().padStart(35)} ║`);
-    console.log(`║ Unique Hosts:    ${stats.uniqueHosts.toString().padStart(35)} ║`);
-    console.log(`║ Session Uptime:  ${stats.uptime.padStart(35)} ║`);
-    console.log(`║ SSH Restarts:    ${stats.restarts.toString().padStart(35)} ║`);
-    console.log("╚══════════════════════════════════════════════════════╝");
+    console.log(statsBox(
+      "Session Stats",
+      [
+        { key: "Total Requests:", value: stats.totalRequests },
+        { key: "Unique Hosts:", value: stats.uniqueHosts },
+        { key: "Session Uptime:", value: stats.uptime },
+        { key: "SSH Restarts:", value: stats.restarts },
+      ],
+      54
+    ));
   }
 
   /**
