@@ -17,7 +17,7 @@ import { TypedEventEmitter, type ProxyServerEvents, type ProxyRequestInfo } from
  * - *.us matches all domains ending in .us TLD
  * - foo.example.com matches exact domain
  */
-function shouldUseDirect(hostname: string, directDomains: string[]): boolean {
+export function shouldUseDirect(hostname: string, directDomains: string[]): boolean {
   if (directDomains.length === 0) {
     return false;
   }

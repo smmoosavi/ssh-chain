@@ -6,6 +6,7 @@
   "scripts": {
     "start": "bun run index.ts",
     "dev": "bun run --watch index.ts",
+    "test": "bun test",
     "typecheck": "tsc --noEmit",
     "build": "bun build --compile --minify --sourcemap ./index.ts --outfile dist/ssh-chain"
   },
