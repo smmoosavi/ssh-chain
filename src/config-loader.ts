@@ -19,6 +19,7 @@ import {
 export interface PartialConfig {
   sshServer?: { host: string; port?: number; username?: string; identityFile?: string; options?: string[] };
   portRange?: { min: number; max: number };
+  httpProxyHost?: string;
   httpProxyPort?: number;
   inactivityTimeout?: number;
   healthCheckInterval?: number;
@@ -49,6 +50,7 @@ export class DefaultConfigLoader implements ConfigLoader {
   async load(): Promise<PartialConfig> {
     return {
       portRange: { min: 10000, max: 10100 },
+      httpProxyHost: "127.0.0.1",
       httpProxyPort: 4080,
       inactivityTimeout: 60,
       healthCheckInterval: 30,
@@ -128,6 +130,10 @@ export class FileConfigLoader implements ConfigLoader {
       };
     }
 
+    if (obj.httpProxyHost !== undefined) {
+      config.httpProxyHost = String(obj.httpProxyHost);
+    }
+
     if (obj.httpProxyPort !== undefined) {
       config.httpProxyPort = Number(obj.httpProxyPort);
     }
@@ -175,6 +181,10 @@ export class ArgvConfigLoader implements ConfigLoader {
       config.sshServer = { host: this.args.sshServer };
     }
 
+    if (this.args.httpProxyHost !== undefined) {
+      config.httpProxyHost = this.args.httpProxyHost;
+    }
+
     if (this.args.httpProxyPort !== undefined) {
       config.httpProxyPort = this.args.httpProxyPort;
     }
@@ -205,6 +215,11 @@ export class EnvConfigLoader implements ConfigLoader {
     const sshServer = process.env[`${this.prefix}SSH_SERVER`];
     if (sshServer) {
       config.sshServer = { host: sshServer };
+    }
+
+    const httpProxyHost = process.env[`${this.prefix}HTTP_PROXY_HOST`];
+    if (httpProxyHost) {
+      config.httpProxyHost = httpProxyHost;
     }
 
     const httpProxyPort = process.env[`${this.prefix}HTTP_PROXY_PORT`];
@@ -280,6 +295,9 @@ export class ConfigManager {
     if (override.portRange !== undefined) {
       result.portRange = override.portRange;
     }
+    if (override.httpProxyHost !== undefined) {
+      result.httpProxyHost = override.httpProxyHost;
+    }
     if (override.httpProxyPort !== undefined) {
       result.httpProxyPort = override.httpProxyPort;
     }
@@ -316,6 +334,7 @@ export class ConfigManager {
     return ConfigSchema.parse({
       sshServer: partial.sshServer,
       portRange: partial.portRange,
+      httpProxyHost: partial.httpProxyHost,
       httpProxyPort: partial.httpProxyPort,
       inactivityTimeout: partial.inactivityTimeout,
       healthCheckInterval: partial.healthCheckInterval,

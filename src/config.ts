@@ -63,6 +63,8 @@ const ConfigSchema = z.object({
   sshServer: SSHServerSchema,
   /** Port range for dynamic SOCKS5 proxy allocation */
   portRange: PortRangeSchema.default({ min: 10000, max: 10100 }),
+  /** Host for the HTTP proxy server to bind to */
+  httpProxyHost: z.string().default("127.0.0.1"),
   /** Port for the HTTP proxy server to listen on */
   httpProxyPort: z.number().int().min(1).max(65535).default(4080),
   /** Duration of no data flow before considering connection stalled (seconds) */
@@ -83,6 +85,8 @@ const PartialConfigSchema = z.object({
   sshServer: OptionalSSHServerSchema,
   /** Port range for dynamic SOCKS5 proxy allocation */
   portRange: PortRangeSchema.default({ min: 10000, max: 10100 }),
+  /** Host for the HTTP proxy server to bind to */
+  httpProxyHost: z.string().default("127.0.0.1"),
   /** Port for the HTTP proxy server to listen on */
   httpProxyPort: z.number().int().min(1).max(65535).default(4080),
   /** Duration of no data flow before considering connection stalled (seconds) */
@@ -172,6 +176,7 @@ export async function resolveConfig(args: ParsedArgs): Promise<Config> {
       ? { host: args.sshServer }
       : fileConfig?.sshServer ?? { host: sshServer },
     portRange: fileConfig?.portRange ?? { min: 10000, max: 10100 },
+    httpProxyHost: args.httpProxyHost ?? fileConfig?.httpProxyHost ?? "127.0.0.1",
     httpProxyPort: args.httpProxyPort ?? fileConfig?.httpProxyPort ?? 4080,
     inactivityTimeout: fileConfig?.inactivityTimeout ?? 60,
     healthCheckInterval: fileConfig?.healthCheckInterval ?? 30,

@@ -117,7 +117,7 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
 
     this.server = new ProxyChain.Server({
       port: this.config.httpProxyPort,
-      host: "127.0.0.1",
+      host: this.config.httpProxyHost,
       verbose: this.config.logLevel === "debug",
 
       prepareRequestFunction: ({ request, hostname, port, isHttp }) => {
@@ -205,7 +205,7 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
    * Get the proxy URL for clients to use
    */
   getProxyUrl(): string {
-    return `http://127.0.0.1:${this.config.httpProxyPort}`;
+    return `http://${this.config.httpProxyHost}:${this.config.httpProxyPort}`;
   }
 
   /**

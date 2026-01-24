@@ -9,6 +9,8 @@ export interface ParsedArgs {
   sshServer?: string;
   /** Path to config file */
   configPath?: string;
+  /** HTTP proxy host */
+  httpProxyHost?: string;
   /** HTTP proxy port */
   httpProxyPort?: number;
   /** Log level */
@@ -34,6 +36,7 @@ Arguments:
 
 Options:
   -c, --config <path>     Path to config file (default: ./config.json)
+  -H, --host <host>       HTTP proxy host/IP (default: 127.0.0.1)
   -p, --port <port>       HTTP proxy port (default: 4080)
   -l, --log-level <level> Log level: debug, info, warn, error (default: info)
   -h, --help              Show this help message
@@ -63,6 +66,10 @@ export function parseArgv(argv: string[] = process.argv): ParsedArgs {
       config: {
         type: "string",
         short: "c",
+      },
+      host: {
+        type: "string",
+        short: "H",
       },
       port: {
         type: "string",
@@ -115,6 +122,7 @@ export function parseArgv(argv: string[] = process.argv): ParsedArgs {
   return {
     sshServer,
     configPath: values.config,
+    httpProxyHost: values.host,
     httpProxyPort,
     logLevel,
     help: values.help ?? false,
