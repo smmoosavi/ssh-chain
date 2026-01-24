@@ -1,0 +1,40 @@
+{
+  "_comment": "SSH Chain Proxy Configuration",
+
+  "sshServer": {
+    "_comment": "SSH server connection details",
+    "_option1": "Simple format - just use a host from ~/.ssh/config:",
+    "_example1": "myserver",
+
+    "_option2": "Full format with all options:",
+    "host": "your-ssh-server.example.com",
+    "port": 22,
+    "username": "your-username",
+    "identityFile": "~/.ssh/id_rsa",
+    "options": [
+      "StrictHostKeyChecking=no",
+      "UserKnownHostsFile=/dev/null"
+    ]
+  },
+
+  "portRange": {
+    "_comment": "Port range for SOCKS5 proxy allocation",
+    "min": 10000,
+    "max": 10100
+  },
+
+  "httpProxyPort": 8080,
+  "_httpProxyPort_comment": "Port for the HTTP proxy server",
+
+  "inactivityTimeout": 60,
+  "_inactivityTimeout_comment": "Seconds of no data before restarting (default: 60)",
+
+  "healthCheckInterval": 30,
+  "_healthCheckInterval_comment": "Seconds between health checks (default: 30)",
+
+  "retryAttempts": 3,
+  "_retryAttempts_comment": "Number of restart attempts before giving up (default: 3)",
+
+  "logLevel": "info",
+  "_logLevel_comment": "Log level: debug, info, warn, error (default: info)"
+}

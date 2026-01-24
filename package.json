@@ -3,6 +3,12 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "start": "bun run index.ts",
+    "dev": "bun run --watch index.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "bun build --compile --minify --sourcemap ./index.ts --outfile dist/ssh-chain"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
@@ -12,6 +18,7 @@
   "dependencies": {
     "ink": "^6.6.0",
     "proxy-chain": "^2.7.1",
-    "react": "^19.2.3"
+    "react": "^19.2.3",
+    "zod": "^4.3.6"
   }
 }

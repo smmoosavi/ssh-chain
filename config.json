@@ -1,0 +1,16 @@
+{
+  "sshServer": {
+    "host": "your-ssh-server.example.com",
+    "port": 22,
+    "username": "your-username"
+  },
+  "portRange": {
+    "min": 10000,
+    "max": 10100
+  },
+  "httpProxyPort": 8080,
+  "inactivityTimeout": 60,
+  "healthCheckInterval": 30,
+  "retryAttempts": 3,
+  "logLevel": "info"
+}

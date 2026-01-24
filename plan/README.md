@@ -81,12 +81,14 @@ Interactive terminal UI using Ink (React for CLI) displaying:
 
 ## Technical Stack
 
+- **pnpm**: Package manager
 - **Runtime**: Bun
 - **UI Framework**: Ink (React for terminal)
 - **Proxy Library**: proxy-chain npm package
 - **SSH Management**: Node.js child_process for ssh command execution
 - **Data Monitoring**: Stream interceptors to track data flow
 - **typeScript**: For type safety and maintainability
+- **Zod**: For configuration schema validation
 
 ## Implementation Phases
 
