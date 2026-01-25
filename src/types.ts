@@ -38,9 +38,24 @@ export class TypedEventEmitter<TEvents extends { [key: string]: unknown[] }> ext
 }
 
 /**
+ * Connection statistics for bandwidth tracking
+ */
+export interface ConnectionStats {
+  /** Number of bytes sent to client */
+  srcTxBytes: number;
+  /** Number of bytes received from client */
+  srcRxBytes: number;
+  /** Number of bytes sent to target server (proxy or website) */
+  trgTxBytes: number | null;
+  /** Number of bytes received from target server (proxy or website) */
+  trgRxBytes: number | null;
+}
+
+/**
  * Request info for proxy events
  */
 export interface ProxyRequestInfo {
+  connectionId: number;
   hostname: string;
   port: number;
   method: string;
@@ -56,6 +71,7 @@ export interface ProxyRequestInfo {
 export type ProxyServerEvents = {
   request: [info: ProxyRequestInfo];
   connect: [hostname: string, port: number];
+  connectionClosed: [connectionId: number, stats: ConnectionStats, hostname: string];
   error: [error: Error, context?: string];
   started: [port: number, proxyUrl: string];
   stopped: [];

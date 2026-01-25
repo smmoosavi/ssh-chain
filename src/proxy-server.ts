@@ -8,7 +8,7 @@ import { networkInterfaces } from "os";
 import ProxyChain from "proxy-chain";
 import type { Config } from "./config.ts";
 import type { SSHManager } from "./ssh-manager.ts";
-import { TypedEventEmitter, type ProxyServerEvents, type ProxyRequestInfo } from "./types.ts";
+import { TypedEventEmitter, type ProxyServerEvents, type ProxyRequestInfo, type ConnectionStats } from "./types.ts";
 
 /**
  * Check if a domain matches any pattern in the direct domains list
@@ -62,6 +62,8 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
   private config: Config;
   private sshManager: SSHManager;
   private server: ProxyChain.Server | null = null;
+  /** Map connectionId to hostname for tracking */
+  private connectionHostnames: Map<number, string> = new Map();
 
   constructor(config: Config, sshManager: SSHManager) {
     super();
@@ -121,9 +123,12 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
       host: this.config.httpProxyHost,
       verbose: this.config.logLevel === "debug",
 
-      prepareRequestFunction: ({ request, hostname, port, isHttp }) => {
+      prepareRequestFunction: ({ request, hostname, port, isHttp, connectionId }) => {
         const targetHost = hostname || this.extractHostname(request.url || "");
         const targetPort = port || this.extractPort(request.url || "", !isHttp);
+
+        // Track connection hostname for stats
+        this.connectionHostnames.set(connectionId, targetHost);
 
         // Check if domain should bypass proxy
         const isDirect = shouldUseDirect(targetHost, this.config.directDomains);
@@ -132,6 +137,7 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
 
         // Emit request event for plugins
         const requestInfo: ProxyRequestInfo = {
+          connectionId,
           hostname: targetHost,
           port: targetPort,
           method,
@@ -170,9 +176,12 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
       },
     });
 
-    // Note: connectionClosed event doesn't fire reliably for SOCKS5 tunneled HTTPS
-    // connections, so byte tracking is not available with this architecture.
-    // We only track request counts per hostname.
+    // Listen for connection closed events to emit byte statistics
+    this.server.on("connectionClosed", ({ connectionId, stats }: { connectionId: number; stats: ConnectionStats }) => {
+      const hostname = this.connectionHostnames.get(connectionId) || "unknown";
+      this.connectionHostnames.delete(connectionId);
+      this.emit("connectionClosed", connectionId, stats, hostname);
+    });
 
     this.server.on("requestFailed", ({ error }) => {
       // Filter out "Only HTTP protocol is supported" errors - these occur when
@@ -198,6 +207,7 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
       await this.server.close(true);
       this.server = null;
     }
+    this.connectionHostnames.clear();
 
     this.emit("stopped");
   }
@@ -248,5 +258,26 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
    */
   getPort(): number {
     return this.config.httpProxyPort;
+  }
+
+  /**
+   * Get traffic statistics for a specific connection
+   */
+  getConnectionStats(connectionId: number): ConnectionStats | undefined {
+    return this.server?.getConnectionStats(connectionId);
+  }
+
+  /**
+   * Get all active connection IDs
+   */
+  getActiveConnectionIds(): number[] {
+    return this.server?.getConnectionIds() ?? [];
+  }
+
+  /**
+   * Get hostname associated with a connection
+   */
+  getConnectionHostname(connectionId: number): string | undefined {
+    return this.connectionHostnames.get(connectionId);
   }
 }

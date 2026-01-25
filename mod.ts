@@ -55,6 +55,7 @@ export {
   type ProxyRequestInfo,
   type ProxyServerEvents,
   type SSHManagerEvents,
+  type ConnectionStats,
 } from "./src/types.ts";
 
 // Args parsing

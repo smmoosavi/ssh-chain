@@ -21,6 +21,8 @@ export interface ProxyStats {
   hostnameStats: Map<string, {
     requests: number;
     directRequests: number;
+    bytesIn: number;
+    bytesOut: number;
     lastAccess: Date;
   }>;
 }
@@ -57,8 +59,32 @@ export class StatsPlugin implements ProxyPlugin {
         this.stats.hostnameStats.set(info.hostname, {
           requests: 1,
           directRequests: info.isDirect ? 1 : 0,
+          bytesIn: 0,
+          bytesOut: 0,
           lastAccess: new Date(),
         });
+      }
+    });
+
+    ctx.onProxyEvent("connectionClosed", (_connectionId, stats, hostname) => {
+      // srcRxBytes = bytes received from client (client upload = our download)
+      // trgRxBytes = bytes received from target (target download = our download)
+      // srcTxBytes = bytes sent to client (client download)
+      // trgTxBytes = bytes sent to target (target upload)
+      
+      // Total bytes in = what we received from target
+      const bytesIn = stats.trgRxBytes ?? 0;
+      // Total bytes out = what we sent to target
+      const bytesOut = stats.trgTxBytes ?? 0;
+
+      this.stats.totalBytesIn += bytesIn;
+      this.stats.totalBytesOut += bytesOut;
+
+      // Update per-hostname stats
+      const hostnameStats = this.stats.hostnameStats.get(hostname);
+      if (hostnameStats) {
+        hostnameStats.bytesIn += bytesIn;
+        hostnameStats.bytesOut += bytesOut;
       }
     });
   }
@@ -80,14 +106,40 @@ export class StatsPlugin implements ProxyPlugin {
     hostname: string;
     requests: number;
     directRequests: number;
+    bytesIn: number;
+    bytesOut: number;
   }> {
     return Array.from(this.stats.hostnameStats.entries())
       .map(([hostname, stats]) => ({
         hostname,
         requests: stats.requests,
         directRequests: stats.directRequests,
+        bytesIn: stats.bytesIn,
+        bytesOut: stats.bytesOut,
       }))
       .sort((a, b) => b.requests - a.requests)
+      .slice(0, limit);
+  }
+
+  /**
+   * Get top hostnames by byte usage
+   */
+  getTopHostnamesByBytes(limit: number = 10): Array<{
+    hostname: string;
+    requests: number;
+    bytesIn: number;
+    bytesOut: number;
+    totalBytes: number;
+  }> {
+    return Array.from(this.stats.hostnameStats.entries())
+      .map(([hostname, stats]) => ({
+        hostname,
+        requests: stats.requests,
+        bytesIn: stats.bytesIn,
+        bytesOut: stats.bytesOut,
+        totalBytes: stats.bytesIn + stats.bytesOut,
+      }))
+      .sort((a, b) => b.totalBytes - a.totalBytes)
       .slice(0, limit);
   }
 
@@ -183,6 +235,17 @@ export class ConsoleLoggerPlugin implements ProxyPlugin {
 }
 
 /**
+ * Format bytes to human-readable string
+ */
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  const value = bytes / Math.pow(1024, i);
+  return `${value.toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
+}
+
+/**
  * Plugin that provides a banner display
  */
 export class BannerPlugin implements ProxyPlugin {
@@ -238,30 +301,46 @@ export class BannerPlugin implements ProxyPlugin {
     uniqueHosts: number;
     uptime: string;
     restarts: number;
+    totalBytesIn?: number;
+    totalBytesOut?: number;
   }): void {
     console.log();
-    console.log(statsBox(
-      "Session Stats",
-      [
-        { key: "Total Requests:", value: stats.totalRequests },
-        { key: "Unique Hosts:", value: stats.uniqueHosts },
-        { key: "Session Uptime:", value: stats.uptime },
-        { key: "SSH Restarts:", value: stats.restarts },
-      ],
-      54
-    ));
+    const items: Array<{ key: string; value: string | number }> = [
+      { key: "Total Requests:", value: stats.totalRequests },
+      { key: "Unique Hosts:", value: stats.uniqueHosts },
+      { key: "Session Uptime:", value: stats.uptime },
+      { key: "SSH Restarts:", value: stats.restarts },
+    ];
+    
+    if (stats.totalBytesIn !== undefined || stats.totalBytesOut !== undefined) {
+      const bytesIn = stats.totalBytesIn ?? 0;
+      const bytesOut = stats.totalBytesOut ?? 0;
+      items.push(
+        { key: "Data Downloaded:", value: formatBytes(bytesIn) },
+        { key: "Data Uploaded:", value: formatBytes(bytesOut) },
+        { key: "Total Transfer:", value: formatBytes(bytesIn + bytesOut) },
+      );
+    }
+    
+    console.log(statsBox("Session Stats", items, 54));
   }
 
   /**
    * Print top hostnames
    */
-  printTopHostnames(hosts: Array<{ hostname: string; requests: number }>): void {
+  printTopHostnames(hosts: Array<{ hostname: string; requests: number; bytesIn?: number; bytesOut?: number }>): void {
     if (hosts.length === 0) return;
     
     console.log();
     console.log("Top Hostnames:");
     for (const host of hosts) {
-      console.log(`  ${host.hostname}: ${host.requests} requests`);
+      const hasBytesInfo = host.bytesIn !== undefined || host.bytesOut !== undefined;
+      if (hasBytesInfo) {
+        const totalBytes = (host.bytesIn ?? 0) + (host.bytesOut ?? 0);
+        console.log(`  ${host.hostname}: ${host.requests} requests (${formatBytes(totalBytes)})`);
+      } else {
+        console.log(`  ${host.hostname}: ${host.requests} requests`);
+      }
     }
   }
 }
