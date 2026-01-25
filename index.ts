@@ -55,9 +55,13 @@ async function main() {
   // Create app with composition
   const app = createApp(config, plugins);
 
+  // Track shutdown state to prevent double shutdown
+  let isShuttingDown = false;
+
   // Graceful shutdown handler
   async function shutdown(signal: string) {
-    if (!app.isAppRunning()) return;
+    if (isShuttingDown || !app.isAppRunning()) return;
+    isShuttingDown = true;
 
     console.log();
     console.log(`[Main] Received ${signal}, shutting down...`);

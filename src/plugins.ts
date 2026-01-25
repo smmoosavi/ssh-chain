@@ -274,16 +274,14 @@ export class PluginManager implements PluginContext {
   private proxyServer: ProxyServer | null = null;
   private sshManager: SSHManager | null = null;
   private config: Config | null = null;
+  private eventCleanups: Map<string, Array<() => void>> = new Map();
+  private currentPluginName: string | null = null;
 
   /**
    * Set the proxy server to subscribe to events
    */
   setProxyServer(proxy: ProxyServer): void {
     this.proxyServer = proxy;
-    // Re-register all plugins with new event source
-    for (const plugin of this.plugins.values()) {
-      plugin.onRegister?.(this);
-    }
   }
 
   /**
@@ -291,10 +289,6 @@ export class PluginManager implements PluginContext {
    */
   setSSHManager(ssh: SSHManager): void {
     this.sshManager = ssh;
-    // Re-register all plugins with new event source
-    for (const plugin of this.plugins.values()) {
-      plugin.onRegister?.(this);
-    }
   }
 
   /**
@@ -312,7 +306,10 @@ export class PluginManager implements PluginContext {
       throw new Error(`Plugin "${plugin.name}" is already registered`);
     }
     this.plugins.set(plugin.name, plugin);
+    this.eventCleanups.set(plugin.name, []);
+    this.currentPluginName = plugin.name;
     plugin.onRegister?.(this);
+    this.currentPluginName = null;
     return this;
   }
 
@@ -322,6 +319,14 @@ export class PluginManager implements PluginContext {
   unregister(name: string): this {
     const plugin = this.plugins.get(name);
     if (plugin) {
+      // Cleanup event listeners for this plugin
+      const cleanups = this.eventCleanups.get(name);
+      if (cleanups) {
+        for (const cleanup of cleanups) {
+          cleanup();
+        }
+        this.eventCleanups.delete(name);
+      }
       plugin.onUnregister?.();
       this.plugins.delete(name);
     }
@@ -356,7 +361,13 @@ export class PluginManager implements PluginContext {
     handler: (...args: ProxyServerEvents[K]) => void
   ): void {
     if (this.proxyServer) {
-      this.proxyServer.on(event, handler as (...args: unknown[]) => void);
+      const typedHandler = handler as (...args: unknown[]) => void;
+      this.proxyServer.on(event, typedHandler);
+      // Track for cleanup
+      if (this.currentPluginName) {
+        const cleanups = this.eventCleanups.get(this.currentPluginName);
+        cleanups?.push(() => this.proxyServer?.off(event, typedHandler));
+      }
     }
   }
 
@@ -365,7 +376,13 @@ export class PluginManager implements PluginContext {
     handler: (...args: SSHManagerEvents[K]) => void
   ): void {
     if (this.sshManager) {
-      this.sshManager.on(event, handler as (...args: unknown[]) => void);
+      const typedHandler = handler as (...args: unknown[]) => void;
+      this.sshManager.on(event, typedHandler);
+      // Track for cleanup
+      if (this.currentPluginName) {
+        const cleanups = this.eventCleanups.get(this.currentPluginName);
+        cleanups?.push(() => this.sshManager?.off(event, typedHandler));
+      }
     }
   }
 

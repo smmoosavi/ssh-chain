@@ -76,7 +76,7 @@ const ConfigSchema = z.object({
   /** Logging level */
   logLevel: LogLevelSchema.optional().default("info"),
   /** List of domains that should bypass the proxy (support wildcards) */
-  directDomains: z.array(z.string()).optional().default(["localhost", "*.local"]),
+  directDomains: z.array(z.string()).optional().default([]),
 });
 
 // Partial config schema for file loading (sshServer is optional, can come from args)

@@ -305,6 +305,14 @@ export class ConfigManager {
       );
     }
 
+    // Always append localhost and *.local to directDomains (user cannot bypass these)
+    const builtinDirectDomains = ["localhost", "*.local"];
+    const userDirectDomains = partial.directDomains ?? [];
+    const mergedDirectDomains = [
+      ...userDirectDomains.filter(d => !builtinDirectDomains.includes(d)),
+      ...builtinDirectDomains,
+    ];
+
     return ConfigSchema.parse({
       sshServer: partial.sshServer,
       portRange: partial.portRange,
@@ -314,7 +322,7 @@ export class ConfigManager {
       healthCheckInterval: partial.healthCheckInterval,
       retryAttempts: partial.retryAttempts,
       logLevel: partial.logLevel,
-      directDomains: partial.directDomains,
+      directDomains: mergedDirectDomains,
     });
   }
 }

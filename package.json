@@ -1,5 +1,6 @@
 {
   "name": "ssh-chain",
+  "version": "1.0.0",
   "module": "index.ts",
   "type": "module",
   "private": true,
@@ -8,7 +9,7 @@
     "dev": "bun run --watch index.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "build": "bun build --compile --minify --sourcemap ./index.ts --outfile dist/ssh-chain"
+    "build": "GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo '') && bun build --compile --minify --sourcemap --define \"BUILD_GIT_HASH='$GIT_HASH'\" ./index.ts --outfile dist/ssh-chain"
   },
   "devDependencies": {
     "@types/bun": "latest"

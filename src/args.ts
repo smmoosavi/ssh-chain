@@ -54,9 +54,33 @@ export function printHelp(): void {
   console.log(HELP_TEXT.trim());
 }
 
+/** Build-time git hash (injected via --define during build, falls back to runtime for dev) */
+declare const BUILD_GIT_HASH: string | undefined;
+
+function getGitHash(): string | null {
+  // Use build-time constant if available
+  if (typeof BUILD_GIT_HASH !== "undefined" && BUILD_GIT_HASH) {
+    return BUILD_GIT_HASH;
+  }
+  // Fallback to runtime for development
+  try {
+    const result = Bun.spawnSync(["git", "rev-parse", "--short", "HEAD"]);
+    if (result.success) {
+      return result.stdout.toString().trim();
+    }
+  } catch {
+    // Git not available or not a git repo
+  }
+  return null;
+}
+
 export function printVersion(): void {
-  // Read version from package.json if needed
-  console.log("ssh-chain v1.0.0");
+  // Read version from package.json
+  const pkg = require("../package.json");
+  const version = pkg.version || "0.0.0";
+  const gitHash = getGitHash();
+  const versionStr = gitHash ? `${version} (${gitHash})` : version;
+  console.log(`ssh-chain v${versionStr}`);
 }
 
 export function parseArgv(argv: string[] = process.argv): ParsedArgs {
