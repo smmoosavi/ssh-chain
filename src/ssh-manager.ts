@@ -5,8 +5,16 @@
  */
 
 import type { Config, SSHServerConfig } from "./config.ts";
-import type { Subprocess } from "bun";
+import { spawn, type ChildProcess } from "node:child_process";
+import { createConnection } from "node:net";
 import { TypedEventEmitter, type SSHManagerEvents } from "./types.ts";
+
+/**
+ * Sleep for the specified duration
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export interface SSHManagerState {
   isRunning: boolean;
@@ -19,7 +27,8 @@ export interface SSHManagerState {
 
 export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
   private config: Config;
-  private process: Subprocess | null = null;
+  private process: ChildProcess | null = null;
+  private processExited: Promise<number | null> | null = null;
   private state: SSHManagerState = {
     isRunning: false,
     currentPort: null,
@@ -149,10 +158,14 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
     const args = this.buildSSHArgs(port);
     console.log(`[SSH] Command: ssh ${args.join(" ")}`);
 
-    this.process = Bun.spawn(["ssh", ...args], {
-      stdout: "pipe",
-      stderr: "pipe",
-      stdin: "ignore",
+    this.process = spawn("ssh", args, {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    // Create a promise for process exit
+    this.processExited = new Promise<number | null>((resolve) => {
+      this.process?.on("exit", (code) => resolve(code));
+      this.process?.on("error", () => resolve(null));
     });
 
     this.state.isRunning = true;
@@ -172,41 +185,29 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
   /**
    * Monitor SSH process output
    */
-  private async monitorOutput(): Promise<void> {
+  private monitorOutput(): void {
     if (!this.process) return;
 
     // SSH verbose output goes to stderr
     const stderr = this.process.stderr;
-    if (stderr && typeof stderr !== "number") {
-      const reader = stderr.getReader();
-      const decoder = new TextDecoder();
+    if (stderr) {
+      stderr.setEncoding("utf-8");
+      stderr.on("data", (text: string) => {
+        this.emit("stderr", text);
 
-      (async () => {
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            const text = decoder.decode(value);
-            this.emit("stderr", text);
-
-            // Check for activity indicators in SSH debug output
-            if (
-              text.includes("Entering interactive session") ||
-              text.includes("channel") ||
-              text.includes("data")
-            ) {
-              this.updateActivity();
-            }
-          }
-        } catch (error) {
-          // Stream closed
+        // Check for activity indicators in SSH debug output
+        if (
+          text.includes("Entering interactive session") ||
+          text.includes("channel") ||
+          text.includes("data")
+        ) {
+          this.updateActivity();
         }
-      })();
+      });
     }
 
     // Monitor process exit
-    this.process.exited.then((code) => {
+    this.processExited?.then((code) => {
       this.state.isRunning = false;
       this.emit("exit", code);
 
@@ -233,27 +234,26 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
       }
 
       // Try to connect to the SOCKS5 proxy
-      try {
-        const socket = await Bun.connect({
-          hostname: "127.0.0.1",
-          port: port,
-          socket: {
-            data() {},
-            open(socket) {
-              socket.end();
-            },
-            close() {},
-            error() {},
-          },
+      const connected = await new Promise<boolean>((resolve) => {
+        const socket = createConnection({ host: "127.0.0.1", port }, () => {
+          socket.end();
+          resolve(true);
         });
+        socket.on("error", () => resolve(false));
+        socket.setTimeout(1000, () => {
+          socket.destroy();
+          resolve(false);
+        });
+      });
 
+      if (connected) {
         // Connection successful, proxy is ready
         this.emit("ready", port);
         return;
-      } catch {
-        // Not ready yet, wait and retry
-        await Bun.sleep(checkInterval);
       }
+
+      // Not ready yet, wait and retry
+      await sleep(checkInterval);
     }
 
     throw new Error(`SSH SOCKS5 proxy failed to start within ${timeout}ms`);
@@ -320,7 +320,7 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
       
       // Wait up to 2 seconds for graceful exit
       const timeout = new Promise<void>(resolve => setTimeout(resolve, 2000));
-      const exited = this.process.exited.then(() => {});
+      const exited = this.processExited?.then(() => {}) ?? Promise.resolve();
       
       await Promise.race([exited, timeout]);
       
@@ -328,10 +328,11 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
       if (!this.process.killed) {
         this.process.kill("SIGKILL");
         // Give it a brief moment to die
-        await Promise.race([this.process.exited, new Promise(resolve => setTimeout(resolve, 500))]);
+        await Promise.race([this.processExited ?? Promise.resolve(), new Promise(resolve => setTimeout(resolve, 500))]);
       }
       
       this.process = null;
+      this.processExited = null;
     }
 
     if (this.state.currentPort) {
@@ -351,7 +352,7 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
     this.emit("restart", this.state.restartCount);
 
     await this.stop();
-    await Bun.sleep(1000); // Brief delay before restart
+    await sleep(1000); // Brief delay before restart
     await this.start();
   }
 }

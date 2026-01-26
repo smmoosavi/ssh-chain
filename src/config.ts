@@ -4,6 +4,7 @@
 
 import { z } from "zod";
 import type { ParsedArgs } from "./args.ts";
+import { fileExists, readFileText } from "./fs-utils.ts";
 
 // SSH Server configuration schema (full object format)
 const SSHServerObjectSchema = z.object({
@@ -112,14 +113,12 @@ export type Config = z.infer<typeof ConfigSchema>;
 export async function loadConfigFile(
   configPath: string
 ): Promise<z.infer<typeof PartialConfigSchema>> {
-  const file = Bun.file(configPath);
-
-  if (!(await file.exists())) {
+  if (!(await fileExists(configPath))) {
     throw new Error(`Configuration file not found: ${configPath}`);
   }
 
   try {
-    const content = await file.text();
+    const content = await readFileText(configPath);
     const rawConfig = JSON.parse(content);
     return PartialConfigSchema.parse(rawConfig);
   } catch (error) {
@@ -146,8 +145,7 @@ export async function resolveConfig(args: ParsedArgs): Promise<Config> {
   const configPath = args.configPath ?? "./config.json";
 
   try {
-    const file = Bun.file(configPath);
-    if (await file.exists()) {
+    if (await fileExists(configPath)) {
       fileConfig = await loadConfigFile(configPath);
     } else if (args.configPath) {
       // Config file was explicitly specified but doesn't exist
@@ -194,14 +192,12 @@ export async function resolveConfig(args: ParsedArgs): Promise<Config> {
 export async function loadConfig(
   configPath: string = "./config.json"
 ): Promise<Config> {
-  const file = Bun.file(configPath);
-
-  if (!(await file.exists())) {
+  if (!(await fileExists(configPath))) {
     throw new Error(`Configuration file not found: ${configPath}`);
   }
 
   try {
-    const content = await file.text();
+    const content = await readFileText(configPath);
     const rawConfig = JSON.parse(content);
     return ConfigSchema.parse(rawConfig);
   } catch (error) {

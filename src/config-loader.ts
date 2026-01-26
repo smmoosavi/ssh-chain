@@ -6,6 +6,7 @@
 import { z } from "zod";
 import type { Config } from "./config.ts";
 import type { ParsedArgs } from "./args.ts";
+import { fileExists, readFileText } from "./fs-utils.ts";
 import {
   ConfigSchema,
   SSHServerSchema,
@@ -105,9 +106,7 @@ export class FileConfigLoader implements ConfigLoader {
   }
 
   async load(): Promise<PartialConfig> {
-    const file = Bun.file(this.configPath);
-    
-    if (!(await file.exists())) {
+    if (!(await fileExists(this.configPath))) {
       if (this.required) {
         throw new Error(`Configuration file not found: ${this.configPath}`);
       }
@@ -115,7 +114,7 @@ export class FileConfigLoader implements ConfigLoader {
     }
 
     try {
-      const content = await file.text();
+      const content = await readFileText(this.configPath);
       const rawConfig = JSON.parse(content);
       return PartialConfigSchema.parse(rawConfig);
     } catch (error) {

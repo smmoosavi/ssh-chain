@@ -54,6 +54,8 @@ export function printHelp(): void {
   console.log(HELP_TEXT.trim());
 }
 
+import { execSync } from "node:child_process";
+
 /** Build-time git hash (injected via --define during build, falls back to runtime for dev) */
 declare const BUILD_GIT_HASH: string | undefined;
 
@@ -64,10 +66,8 @@ function getGitHash(): string | null {
   }
   // Fallback to runtime for development
   try {
-    const result = Bun.spawnSync(["git", "rev-parse", "--short", "HEAD"]);
-    if (result.success) {
-      return result.stdout.toString().trim();
-    }
+    const result = execSync("git rev-parse --short HEAD", { encoding: "utf-8" });
+    return result.trim();
   } catch {
     // Git not available or not a git repo
   }

@@ -12,7 +12,8 @@
     "build": "GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo '') && bun build --compile --minify --sourcemap --define \"BUILD_GIT_HASH='$GIT_HASH'\" ./index.ts --outfile dist/ssh-chain"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "tsx": "^4.21.0"
   },
   "peerDependencies": {
     "typescript": "^5"
