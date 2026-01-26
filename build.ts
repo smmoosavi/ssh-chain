@@ -1,0 +1,99 @@
+/**
+ * Build script for SSH Chain
+ *
+ * Outputs:
+ * 1. dist/ssh-chain.js - Single JS file (runs with bun or node)
+ * 2. dist/ssh-chain - Single binary (bun runtime + code)
+ */
+
+import { $ } from "bun";
+
+const ENTRY_POINT = "./index.ts";
+const OUT_DIR = "./dist";
+
+async function getGitHash(): Promise<string> {
+  try {
+    const result = await $`git rev-parse --short HEAD`.quiet();
+    return result.text().trim();
+  } catch {
+    return "";
+  }
+}
+
+async function ensureOutDir(): Promise<void> {
+  await $`mkdir -p ${OUT_DIR}`.quiet();
+}
+
+async function buildJsBundle(gitHash: string): Promise<boolean> {
+  console.log("📦 Building JS bundle...");
+
+  const result = await Bun.build({
+    entrypoints: [ENTRY_POINT],
+    outdir: OUT_DIR,
+    target: "node",
+    minify: true,
+    sourcemap: "external",
+    define: {
+      BUILD_GIT_HASH: JSON.stringify(gitHash),
+    },
+    naming: "ssh-chain.js",
+  });
+
+  if (!result.success) {
+    console.error("❌ JS bundle build failed:");
+    for (const log of result.logs) {
+      console.error(log);
+    }
+    return false;
+  }
+
+  console.log("✅ dist/ssh-chain.js");
+  return true;
+}
+
+async function buildBinary(gitHash: string): Promise<boolean> {
+  console.log("📦 Building binary...");
+
+  // Bun.build with compile option is not available in the API
+  // We need to use the CLI for compiled binaries
+  try {
+    const defineArg = `BUILD_GIT_HASH=${JSON.stringify(gitHash)}`;
+    await $`bun build --compile --minify --sourcemap --define ${defineArg} ${ENTRY_POINT} --outfile ${OUT_DIR}/ssh-chain`;
+    console.log("✅ dist/ssh-chain");
+    return true;
+  } catch (error) {
+    console.error("❌ Binary build failed:", error);
+    return false;
+  }
+}
+
+async function main(): Promise<void> {
+  console.log("🔨 SSH Chain Build\n");
+
+  const gitHash = await getGitHash();
+  if (gitHash) {
+    console.log(`📝 Git hash: ${gitHash}\n`);
+  }
+
+  await ensureOutDir();
+
+  const results = await Promise.all([
+    buildJsBundle(gitHash),
+    buildBinary(gitHash),
+  ]);
+
+  console.log("");
+
+  if (results.every(Boolean)) {
+    console.log("🎉 Build complete!\n");
+    console.log("Usage:");
+    console.log("  Binary:  ./dist/ssh-chain");
+    console.log("  Node.js: node dist/ssh-chain.js");
+    console.log("  Bun:     bun dist/ssh-chain.js");
+  } else {
+    console.error("💥 Build failed");
+    process.exit(1);
+  }
+}
+
+main();
