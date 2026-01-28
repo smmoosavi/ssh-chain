@@ -39,6 +39,16 @@ export interface Logger {
   getLevel: () => LogLevel;
   /** Set log level */
   setLevel: (level: LogLevel) => void;
+  /** Set footer lines that persist at the bottom */
+  setFooter: (lines: string[]) => void;
+  /** Update a specific footer line by index */
+  updateFooterLine: (index: number, line: string) => void;
+  /** Clear the footer */
+  clearFooter: () => void;
+  /** Get current footer lines */
+  getFooter: () => string[];
+  /** Check if footer is enabled */
+  hasFooter: () => boolean;
 }
 
 /**
@@ -46,50 +56,154 @@ export interface Logger {
  */
 export function createLogger(initialLevel: LogLevel = "info"): Logger {
   let currentLevel = initialLevel;
+  let footerLines: string[] = [];
+  let footerRendered = false;
 
   const shouldLog = (level: LogLevel): boolean => {
     return LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY[currentLevel];
   };
 
+  /**
+   * Clear the footer from the terminal (move up and clear each line)
+   */
+  const clearRenderedFooter = (): void => {
+    if (!footerRendered || footerLines.length === 0 || !process.stdout.isTTY) {
+      return;
+    }
+    // Move cursor up N lines and clear each line
+    for (let i = 0; i < footerLines.length; i++) {
+      process.stdout.write("\x1b[1A"); // Move up one line
+      process.stdout.write("\x1b[2K"); // Clear the line
+    }
+    footerRendered = false;
+  };
+
+  /**
+   * Build ANSI sequence to clear footer (for buffered output)
+   */
+  const buildClearFooterSequence = (): string => {
+    if (!footerRendered || footerLines.length === 0 || !process.stdout.isTTY) {
+      return "";
+    }
+    let seq = "";
+    for (let i = 0; i < footerLines.length; i++) {
+      seq += "\x1b[1A\x1b[2K"; // Move up + clear line
+    }
+    return seq;
+  };
+
+  /**
+   * Build footer content string
+   */
+  const buildFooterContent = (): string => {
+    if (footerLines.length === 0 || !process.stdout.isTTY) {
+      return "";
+    }
+    return footerLines.join("\n") + "\n";
+  };
+
+  /**
+   * Render the footer to the terminal
+   */
+  const renderFooter = (): void => {
+    if (footerLines.length === 0 || !process.stdout.isTTY) {
+      return;
+    }
+    for (const line of footerLines) {
+      process.stdout.write(line + "\n");
+    }
+    footerRendered = true;
+  };
+
+  /**
+   * Log with footer handling: clear footer, log, re-render footer
+   * Buffers all output and writes at once to prevent flickering
+   */
+  const logWithFooter = (message: string): void => {
+    if (!process.stdout.isTTY || footerLines.length === 0) {
+      // No footer or not a TTY, just write directly
+      process.stdout.write(message + "\n");
+      return;
+    }
+
+    // Buffer: clear footer + message + footer
+    const buffer = buildClearFooterSequence() + message + "\n" + buildFooterContent();
+    footerRendered = false; // Will be true after write
+    process.stdout.write(buffer);
+    footerRendered = true;
+  };
+
+  /**
+   * Log to stderr with footer handling
+   */
+  const logWithFooterStderr = (message: string): void => {
+    if (!process.stdout.isTTY || footerLines.length === 0) {
+      process.stderr.write(message + "\n");
+      return;
+    }
+
+    // Clear footer on stdout, write to stderr, re-render footer on stdout
+    const clearSeq = buildClearFooterSequence();
+    const footerContent = buildFooterContent();
+    footerRendered = false;
+    process.stdout.write(clearSeq);
+    process.stderr.write(message + "\n");
+    process.stdout.write(footerContent);
+    footerRendered = true;
+  };
+
+  /**
+   * Format arguments to string (like console.log does)
+   */
+  const formatArgs = (...args: unknown[]): string => {
+    return args.map(arg => 
+      typeof arg === "string" ? arg : String(arg)
+    ).join(" ");
+  };
+
   return {
     debug: (...args: unknown[]) => {
       if (shouldLog("debug")) {
-        console.log(...args);
+        logWithFooter(formatArgs(...args));
       }
     },
 
     info: (...args: unknown[]) => {
       if (shouldLog("info")) {
-        console.log(...args);
+        logWithFooter(formatArgs(...args));
       }
     },
 
     warn: (...args: unknown[]) => {
       if (shouldLog("warn")) {
-        console.warn(...args);
+        logWithFooterStderr(formatArgs(...args));
       }
     },
 
     error: (...args: unknown[]) => {
       if (shouldLog("error")) {
-        console.error(...args);
+        logWithFooterStderr(formatArgs(...args));
       }
     },
 
     raw: (...args: unknown[]) => {
-      console.log(...args);
+      logWithFooter(formatArgs(...args));
     },
 
     emptyLine: () => {
-      console.log();
+      logWithFooter("");
     },
 
     write: (text: string) => {
+      clearRenderedFooter();
       process.stdout.write(text);
+      renderFooter();
     },
 
     writeError: (text: string) => {
+      clearRenderedFooter();
       process.stderr.write(text);
+      renderFooter();
     },
 
     clearLine: () => {
@@ -111,6 +225,29 @@ export function createLogger(initialLevel: LogLevel = "info"): Logger {
     setLevel: (level: LogLevel) => {
       currentLevel = level;
     },
+
+    setFooter: (lines: string[]) => {
+      clearRenderedFooter();
+      footerLines = [...lines];
+      renderFooter();
+    },
+
+    updateFooterLine: (index: number, line: string) => {
+      if (index >= 0 && index < footerLines.length) {
+        clearRenderedFooter();
+        footerLines[index] = line;
+        renderFooter();
+      }
+    },
+
+    clearFooter: () => {
+      clearRenderedFooter();
+      footerLines = [];
+    },
+
+    getFooter: () => [...footerLines],
+
+    hasFooter: () => footerLines.length > 0,
   };
 }
 
