@@ -20,11 +20,20 @@ async function getGitHash(): Promise<string> {
   }
 }
 
+async function isGitClean(): Promise<boolean> {
+  try {
+    const result = await $`git status --porcelain`.quiet();
+    return result.text().trim() === "";
+  } catch {
+    return true; // Assume clean if git not available
+  }
+}
+
 async function ensureOutDir(): Promise<void> {
   await $`mkdir -p ${OUT_DIR}`.quiet();
 }
 
-async function buildJsBundle(gitHash: string): Promise<boolean> {
+async function buildJsBundle(gitHash: string, isDirty: boolean): Promise<boolean> {
   console.log("📦 Building JS bundle...");
 
   const result = await Bun.build({
@@ -35,6 +44,7 @@ async function buildJsBundle(gitHash: string): Promise<boolean> {
     sourcemap: "external",
     define: {
       BUILD_GIT_HASH: JSON.stringify(gitHash),
+      BUILD_GIT_DIRTY: JSON.stringify(isDirty),
     },
     naming: "ssh-chain.js",
   });
@@ -51,14 +61,15 @@ async function buildJsBundle(gitHash: string): Promise<boolean> {
   return true;
 }
 
-async function buildBinary(gitHash: string): Promise<boolean> {
+async function buildBinary(gitHash: string, isDirty: boolean): Promise<boolean> {
   console.log("📦 Building binary...");
 
   // Bun.build with compile option is not available in the API
   // We need to use the CLI for compiled binaries
   try {
-    const defineArg = `BUILD_GIT_HASH=${JSON.stringify(gitHash)}`;
-    await $`bun build --compile --minify --sourcemap --define ${defineArg} ${ENTRY_POINT} --outfile ${OUT_DIR}/ssh-chain`;
+    const hashDefine = `BUILD_GIT_HASH=${JSON.stringify(gitHash)}`;
+    const dirtyDefine = `BUILD_GIT_DIRTY=${JSON.stringify(isDirty)}`;
+    await $`bun build --compile --minify --sourcemap --define ${hashDefine} --define ${dirtyDefine} ${ENTRY_POINT} --outfile ${OUT_DIR}/ssh-chain`;
     console.log("✅ dist/ssh-chain");
     return true;
   } catch (error) {
@@ -71,15 +82,18 @@ async function main(): Promise<void> {
   console.log("🔨 SSH Chain Build\n");
 
   const gitHash = await getGitHash();
+  const isClean = await isGitClean();
+  
   if (gitHash) {
-    console.log(`📝 Git hash: ${gitHash}\n`);
+    const cleanStatus = isClean ? "clean" : "dirty";
+    console.log(`📝 Git hash: ${gitHash} (${cleanStatus})\n`);
   }
 
   await ensureOutDir();
 
   const results = await Promise.all([
-    buildJsBundle(gitHash),
-    buildBinary(gitHash),
+    buildJsBundle(gitHash, !isClean),
+    buildBinary(gitHash, !isClean),
   ]);
 
   console.log("");

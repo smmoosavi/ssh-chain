@@ -54,24 +54,21 @@ export function printHelp(): void {
   console.log(HELP_TEXT.trim());
 }
 
-import { execSync } from "node:child_process";
-
-/** Build-time git hash (injected via --define during build, falls back to runtime for dev) */
+/** Build-time git hash (injected via --define during build) */
 declare const BUILD_GIT_HASH: string | undefined;
+/** Build-time git dirty flag (injected via --define during build) */
+declare const BUILD_GIT_DIRTY: boolean | undefined;
 
 function getGitHash(): string | null {
   // Use build-time constant if available
   if (typeof BUILD_GIT_HASH !== "undefined" && BUILD_GIT_HASH) {
     return BUILD_GIT_HASH;
   }
-  // Fallback to runtime for development
-  try {
-    const result = execSync("git rev-parse --short HEAD", { encoding: "utf-8" });
-    return result.trim();
-  } catch {
-    // Git not available or not a git repo
-  }
   return null;
+}
+
+function isGitDirty(): boolean {
+  return typeof BUILD_GIT_DIRTY !== "undefined" && BUILD_GIT_DIRTY === true;
 }
 
 export function printVersion(): void {
@@ -79,7 +76,8 @@ export function printVersion(): void {
   const pkg = require("../package.json");
   const version = pkg.version || "0.0.0";
   const gitHash = getGitHash();
-  const versionStr = gitHash ? `${version} (${gitHash})` : version;
+  const dirtyIndicator = isGitDirty() ? " 🔧" : "";
+  const versionStr = gitHash ? `${version} (${gitHash})${dirtyIndicator}` : version;
   console.log(`ssh-chain v${versionStr}`);
 }
 
