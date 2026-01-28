@@ -183,6 +183,54 @@ export class App {
       topHostnames: [],
     };
   }
+
+  /**
+   * Get session statistics including active connections that haven't closed yet
+   * Use this during shutdown to get accurate byte totals
+   */
+  getSessionStatsIncludingActive(): {
+    totalRequests: number;
+    uniqueHosts: number;
+    uptime: string;
+    restarts: number;
+    totalBytesIn: number;
+    totalBytesOut: number;
+    topHostnames: Array<{ hostname: string; requests: number; bytesIn: number; bytesOut: number }>;
+  } {
+    const statsPlugin = this.pluginManager.get<StatsPlugin>("stats");
+    const sshState = this.sshManager.getState();
+
+    // Calculate uptime
+    const uptime = sshState.startTime
+      ? Math.floor((Date.now() - sshState.startTime.getTime()) / 1000)
+      : 0;
+    const uptimeStr = `${Math.floor(uptime / 60)}m ${uptime % 60}s`;
+
+    if (statsPlugin) {
+      const activeConns = this.pluginManager.getActiveConnectionStats();
+      const stats = statsPlugin.getStatsIncludingActive(activeConns);
+      const topHostnames = statsPlugin.getTopHostnamesIncludingActive(activeConns, 5);
+      return {
+        totalRequests: stats.totalRequests,
+        uniqueHosts: stats.hostnameStats.size,
+        uptime: uptimeStr,
+        restarts: sshState.restartCount,
+        totalBytesIn: stats.totalBytesIn,
+        totalBytesOut: stats.totalBytesOut,
+        topHostnames,
+      };
+    }
+
+    return {
+      totalRequests: 0,
+      uniqueHosts: 0,
+      uptime: uptimeStr,
+      restarts: sshState.restartCount,
+      totalBytesIn: 0,
+      totalBytesOut: 0,
+      topHostnames: [],
+    };
+  }
 }
 
 /**

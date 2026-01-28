@@ -66,8 +66,8 @@ async function main() {
     console.log();
     console.log(`[Main] Received ${signal}, shutting down...`);
 
-    // Print final stats using banner plugin
-    const stats = app.getSessionStats();
+    // Print final stats using banner plugin (including active connections)
+    const stats = app.getSessionStatsIncludingActive();
     bannerPlugin?.printSessionStats(stats);
     bannerPlugin?.printTopHostnames(stats.topHostnames);
     console.log();

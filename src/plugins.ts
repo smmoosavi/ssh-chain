@@ -156,6 +156,71 @@ export class StatsPlugin implements ProxyPlugin {
       hostnameStats: new Map(),
     };
   }
+
+  /**
+   * Get statistics including active connections that haven't closed yet
+   */
+  getStatsIncludingActive(
+    activeConnections: Array<{ hostname: string; stats: { trgRxBytes: number | null; trgTxBytes: number | null } }>
+  ): Readonly<ProxyStats> {
+    // Start with current stats
+    let totalBytesIn = this.stats.totalBytesIn;
+    let totalBytesOut = this.stats.totalBytesOut;
+    const hostnameStats = new Map(this.stats.hostnameStats);
+
+    // Add bytes from active connections
+    for (const conn of activeConnections) {
+      const bytesIn = conn.stats.trgRxBytes ?? 0;
+      const bytesOut = conn.stats.trgTxBytes ?? 0;
+
+      totalBytesIn += bytesIn;
+      totalBytesOut += bytesOut;
+
+      const existing = hostnameStats.get(conn.hostname);
+      if (existing) {
+        hostnameStats.set(conn.hostname, {
+          ...existing,
+          bytesIn: existing.bytesIn + bytesIn,
+          bytesOut: existing.bytesOut + bytesOut,
+        });
+      }
+    }
+
+    return {
+      totalRequests: this.stats.totalRequests,
+      directRequests: this.stats.directRequests,
+      proxiedRequests: this.stats.proxiedRequests,
+      totalBytesIn,
+      totalBytesOut,
+      hostnameStats,
+    };
+  }
+
+  /**
+   * Get top hostnames including active connections
+   */
+  getTopHostnamesIncludingActive(
+    activeConnections: Array<{ hostname: string; stats: { trgRxBytes: number | null; trgTxBytes: number | null } }>,
+    limit: number = 10
+  ): Array<{
+    hostname: string;
+    requests: number;
+    directRequests: number;
+    bytesIn: number;
+    bytesOut: number;
+  }> {
+    const stats = this.getStatsIncludingActive(activeConnections);
+    return Array.from(stats.hostnameStats.entries())
+      .map(([hostname, s]) => ({
+        hostname,
+        requests: s.requests,
+        directRequests: s.directRequests,
+        bytesIn: s.bytesIn,
+        bytesOut: s.bytesOut,
+      }))
+      .sort((a, b) => b.requests - a.requests)
+      .slice(0, limit);
+  }
 }
 
 /**
@@ -467,6 +532,23 @@ export class PluginManager implements PluginContext {
 
   getConfig(): Config | null {
     return this.config;
+  }
+
+  getActiveConnectionStats(): Array<{ connectionId: number; hostname: string; stats: { srcTxBytes: number; srcRxBytes: number; trgTxBytes: number | null; trgRxBytes: number | null } }> {
+    if (!this.proxyServer) return [];
+
+    const result: Array<{ connectionId: number; hostname: string; stats: { srcTxBytes: number; srcRxBytes: number; trgTxBytes: number | null; trgRxBytes: number | null } }> = [];
+    const connectionIds = this.proxyServer.getActiveConnectionIds();
+
+    for (const connectionId of connectionIds) {
+      const stats = this.proxyServer.getConnectionStats(connectionId);
+      const hostname = this.proxyServer.getConnectionHostname(connectionId);
+      if (stats && hostname) {
+        result.push({ connectionId, hostname, stats });
+      }
+    }
+
+    return result;
   }
 }
 

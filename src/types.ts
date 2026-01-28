@@ -119,4 +119,6 @@ export interface PluginContext {
   ): void;
   /** Get config */
   getConfig(): unknown;
+  /** Get stats for active connections that haven't closed yet */
+  getActiveConnectionStats(): Array<{ connectionId: number; hostname: string; stats: ConnectionStats }>;
 }
