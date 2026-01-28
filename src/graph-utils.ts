@@ -13,7 +13,7 @@ export const BLOCK_CHARS = [" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇"
  * Available colors for graph rendering
  */
 export type Color =
-  | "black"
+  | "transparent"
   | "darkRed"
   | "orange"
   | "yellow"
@@ -25,7 +25,7 @@ export type Color =
  * Default color gradient from low to high values
  */
 export const DEFAULT_COLORS: Color[] = [
-  "black",
+  "transparent",
   "darkRed",
   "orange",
   "yellow",
@@ -38,7 +38,7 @@ export const DEFAULT_COLORS: Color[] = [
  * ANSI color codes for foreground
  */
 export const ANSI_FG: Record<Color, string> = {
-  black: "\x1b[30m",
+  transparent: "\x1b[39m",
   darkRed: "\x1b[31m",
   orange: "\x1b[38;5;208m",
   yellow: "\x1b[33m",
@@ -51,7 +51,7 @@ export const ANSI_FG: Record<Color, string> = {
  * ANSI color codes for background
  */
 export const ANSI_BG: Record<Color, string> = {
-  black: "\x1b[40m",
+  transparent: "\x1b[49m",
   darkRed: "\x1b[41m",
   orange: "\x1b[48;5;208m",
   yellow: "\x1b[43m",

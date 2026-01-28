@@ -34,15 +34,15 @@ describe("graph-utils", () => {
     it("should return height 0 with first color for value 0", () => {
       const bar = valueToGraphBar(0, maxValue);
       expect(bar.height).toBe(0);
-      expect(bar.color).toBe("black");
-      expect(bar.background).toBe("black");
+      expect(bar.color).toBe("transparent");
+      expect(bar.background).toBe("transparent");
     });
 
     it("should return height 0 for negative values", () => {
       const bar = valueToGraphBar(-5, maxValue);
       expect(bar.height).toBe(0);
-      expect(bar.color).toBe("black");
-      expect(bar.background).toBe("black");
+      expect(bar.color).toBe("transparent");
+      expect(bar.background).toBe("transparent");
     });
 
     it("should return height 8 with last color for value >= maxValue", () => {
@@ -72,7 +72,7 @@ describe("graph-utils", () => {
       const bar = valueToGraphBar(0.99, maxValue);
       // Band 0: 0-1, progress = 0.99, height = round(0.99 * 8) = 8
       expect(bar.height).toBe(8);
-      expect(bar.background).toBe("black");
+      expect(bar.background).toBe("transparent");
       expect(bar.color).toBe("darkRed");
     });
 
@@ -80,7 +80,7 @@ describe("graph-utils", () => {
       const bar = valueToGraphBar(0.5, maxValue);
       // Band 0: 0-1, progress = 0.5, height = round(0.5 * 8) = 4
       expect(bar.height).toBe(4);
-      expect(bar.background).toBe("black");
+      expect(bar.background).toBe("transparent");
       expect(bar.color).toBe("darkRed");
     });
 
@@ -88,7 +88,7 @@ describe("graph-utils", () => {
       const bar = valueToGraphBar(0.25, maxValue);
       // Band 0: 0-1, progress = 0.25, height = round(0.25 * 8) = 2
       expect(bar.height).toBe(2);
-      expect(bar.background).toBe("black");
+      expect(bar.background).toBe("transparent");
       expect(bar.color).toBe("darkRed");
     });
 
@@ -131,10 +131,10 @@ describe("graph-utils", () => {
     });
 
     it("should work with custom colors", () => {
-      const customColors: Color[] = ["black", "green", "white"];
+      const customColors: Color[] = ["transparent", "green", "white"];
       const bar = valueToGraphBar(0.5, 2, { colors: customColors });
       // Band 0: 0-1, progress = 0.5
-      expect(bar.background).toBe("black");
+      expect(bar.background).toBe("transparent");
       expect(bar.color).toBe("green");
       expect(bar.height).toBe(4);
     });
@@ -142,15 +142,15 @@ describe("graph-utils", () => {
     it("should handle maxValue of 0", () => {
       const bar = valueToGraphBar(5, 0);
       expect(bar.height).toBe(0);
-      expect(bar.color).toBe("black");
+      expect(bar.color).toBe("transparent");
     });
   });
 
   describe("graphBarToAnsi", () => {
     it("should render height 0 as space with background", () => {
-      const bar: GraphBar = { color: "darkRed", background: "black", height: 0 };
+      const bar: GraphBar = { color: "darkRed", background: "transparent", height: 0 };
       const result = graphBarToAnsi(bar);
-      expect(result).toBe(`${ANSI_FG.darkRed}${ANSI_BG.black} ${ANSI_RESET}`);
+      expect(result).toBe(`${ANSI_FG.darkRed}${ANSI_BG.transparent} ${ANSI_RESET}`);
     });
 
     it("should render height 8 as full block with foreground color", () => {
@@ -167,9 +167,9 @@ describe("graph-utils", () => {
     });
 
     it("should render height 1 with first partial block", () => {
-      const bar: GraphBar = { color: "darkRed", background: "black", height: 1 };
+      const bar: GraphBar = { color: "darkRed", background: "transparent", height: 1 };
       const result = graphBarToAnsi(bar);
-      expect(result).toBe(`${ANSI_FG.darkRed}${ANSI_BG.black}▁${ANSI_RESET}`);
+      expect(result).toBe(`${ANSI_FG.darkRed}${ANSI_BG.transparent}▁${ANSI_RESET}`);
     });
 
     it("should render height 7 with near-full block", () => {
@@ -204,9 +204,9 @@ describe("graph-utils", () => {
     });
 
     it("should accept custom colors", () => {
-      const customColors: Color[] = ["black", "white"];
+      const customColors: Color[] = ["transparent", "white"];
       const result = valuesToGraphBars([0.5], 1, { colors: customColors });
-      expect(result[0]?.background).toBe("black");
+      expect(result[0]?.background).toBe("transparent");
       expect(result[0]?.color).toBe("white");
     });
   });
@@ -250,14 +250,14 @@ describe("graph-utils", () => {
     it("should handle very small positive values", () => {
       const bar = valueToGraphBar(0.001, 6);
       expect(bar.height).toBe(0);
-      expect(bar.background).toBe("black");
+      expect(bar.background).toBe("transparent");
       expect(bar.color).toBe("darkRed");
     });
 
     it("should handle floating point precision issues", () => {
       // Test value very close to boundary
       const bar = valueToGraphBar(0.9999999, 6);
-      expect(bar.background).toBe("black");
+      expect(bar.background).toBe("transparent");
       expect(bar.color).toBe("darkRed");
     });
 
@@ -269,15 +269,15 @@ describe("graph-utils", () => {
     });
 
     it("should handle two color gradient", () => {
-      const customColors: Color[] = ["black", "white"];
+      const customColors: Color[] = ["transparent", "white"];
       
       const bar0 = valueToGraphBar(0, 10, { colors: customColors });
       expect(bar0.height).toBe(0);
-      expect(bar0.background).toBe("black");
+      expect(bar0.background).toBe("transparent");
       
       const bar5 = valueToGraphBar(5, 10, { colors: customColors });
       expect(bar5.height).toBe(4);
-      expect(bar5.background).toBe("black");
+      expect(bar5.background).toBe("transparent");
       expect(bar5.color).toBe("white");
       
       const bar10 = valueToGraphBar(10, 10, { colors: customColors });
@@ -291,13 +291,13 @@ describe("graph-utils", () => {
       // With 7 colors and maxValue 12, each band is 2 units wide
       const bar0 = valueToGraphBar(0, 12);
       expect(bar0.height).toBe(0);
-      expect(bar0.background).toBe("black");
-      expect(bar0.color).toBe("black");
+      expect(bar0.background).toBe("transparent");
+      expect(bar0.color).toBe("transparent");
 
       const bar1 = valueToGraphBar(1, 12);
       // Band 0: 0-2, progress = 1/2 = 0.5, height = 4
       expect(bar1.height).toBe(4);
-      expect(bar1.background).toBe("black");
+      expect(bar1.background).toBe("transparent");
       expect(bar1.color).toBe("darkRed");
 
       const bar2 = valueToGraphBar(2, 12);
@@ -328,13 +328,13 @@ describe("graph-utils", () => {
       // With 7 colors and maxValue 3, each band is 0.5 units wide
       const bar0 = valueToGraphBar(0, 3);
       expect(bar0.height).toBe(0);
-      expect(bar0.background).toBe("black");
-      expect(bar0.color).toBe("black");
+      expect(bar0.background).toBe("transparent");
+      expect(bar0.color).toBe("transparent");
 
       const bar025 = valueToGraphBar(0.25, 3);
       // Band 0: 0-0.5, progress = 0.25/0.5 = 0.5, height = 4
       expect(bar025.height).toBe(4);
-      expect(bar025.background).toBe("black");
+      expect(bar025.background).toBe("transparent");
       expect(bar025.color).toBe("darkRed");
 
       const bar05 = valueToGraphBar(0.5, 3);

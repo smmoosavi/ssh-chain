@@ -9,6 +9,7 @@ import { createApp } from "./src/app.ts";
 import {
   createDefaultPlugins,
   BannerPlugin,
+  FooterPlugin,
 } from "./src/plugins.ts";
 import { logger } from "./src/logger.ts";
 
@@ -53,6 +54,10 @@ async function main() {
   const bannerPlugin = plugins.find((p) => p.name === "banner") as BannerPlugin;
   bannerPlugin?.printStartupBanner();
 
+  // Get footer plugin and configure it
+  const footerPlugin = plugins.find((p) => p.name === "footer") as FooterPlugin;
+  footerPlugin?.setConnectionInfo(config.sshServer.host, config.httpProxyPort);
+
   // Create app with composition
   const app = createApp(config, plugins);
 
@@ -63,6 +68,9 @@ async function main() {
   async function shutdown(signal: string) {
     if (isShuttingDown || !app.isAppRunning()) return;
     isShuttingDown = true;
+
+    // Stop footer updates first
+    footerPlugin?.stop();
 
     logger.emptyLine();
     logger.info(`[Main] Received ${signal}, shutting down...`);
@@ -101,6 +109,9 @@ async function main() {
 
     // Print running banner
     bannerPlugin?.printRunningBanner(app.getProxyUrls());
+
+    // Start footer updates
+    footerPlugin?.start();
   } catch (error) {
     logger.error(`[Main] Startup failed: ${error}`);
     await app.stop();
