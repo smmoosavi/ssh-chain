@@ -8,6 +8,7 @@ import type { ProxyPlugin, PluginContext, ProxyRequestInfo, ProxyServerEvents, S
 import type { ProxyServer } from "./proxy-server.ts";
 import type { SSHManager, SSHManagerState } from "./ssh-manager.ts";
 import { box, statsBox, centeredBox } from "./box-utils.ts";
+import { logger } from "./logger.ts";
 
 /**
  * Statistics tracking for proxy requests
@@ -250,51 +251,51 @@ export class ConsoleLoggerPlugin implements ProxyPlugin {
         ? `${info.hostname}:${info.port}`
         : info.url;
       
-      console.log(`[${timestamp}] ${info.method} ${displayUrl}${directLabel}`);
+      logger.info(`[${timestamp}] ${info.method} ${displayUrl}${directLabel}`);
     });
 
     // Log proxy errors
     ctx.onProxyEvent("error", (error, context) => {
       if (!this.shouldLog("error")) return;
-      console.error(`[Proxy] Error${context ? ` (${context})` : ""}: ${error.message}`);
+      logger.error(`[Proxy] Error${context ? ` (${context})` : ""}: ${error.message}`);
     });
 
     // Log proxy started
     ctx.onProxyEvent("started", (port, proxyUrl) => {
       if (!this.shouldLog("info")) return;
-      console.log(`[Proxy] HTTP proxy listening on ${proxyUrl}`);
+      logger.info(`[Proxy] HTTP proxy listening on ${proxyUrl}`);
     });
 
     // Log proxy stopped
     ctx.onProxyEvent("stopped", () => {
       if (!this.shouldLog("info")) return;
-      console.log("[Proxy] Stopped");
+      logger.info("[Proxy] Stopped");
     });
 
     // Log SSH events
     ctx.onSSHEvent("ready", (port) => {
       if (!this.shouldLog("info")) return;
-      console.log(`[SSH] SOCKS5 proxy ready on port ${port}`);
+      logger.info(`[SSH] SOCKS5 proxy ready on port ${port}`);
     });
 
     ctx.onSSHEvent("error", (error) => {
       if (!this.shouldLog("error")) return;
-      console.error(`[SSH] Error: ${error.message}`);
+      logger.error(`[SSH] Error: ${error.message}`);
     });
 
     ctx.onSSHEvent("exit", (code) => {
       if (!this.shouldLog("info")) return;
-      console.log(`[SSH] Process exited with code ${code}`);
+      logger.info(`[SSH] Process exited with code ${code}`);
     });
 
     ctx.onSSHEvent("restart", (count) => {
       if (!this.shouldLog("info")) return;
-      console.log(`[SSH] Restarted (total restarts: ${count})`);
+      logger.info(`[SSH] Restarted (total restarts: ${count})`);
     });
 
     ctx.onSSHEvent("stderr", (data) => {
       if (!this.shouldLog("debug")) return;
-      process.stderr.write(`[SSH] ${data}`);
+      logger.writeError(`[SSH] ${data}`);
     });
   }
 }
@@ -334,14 +335,14 @@ export class BannerPlugin implements ProxyPlugin {
       .center(this.title)
       .bottom()
       .print();
-    console.log();
+    logger.emptyLine();
   }
 
   /**
    * Print running banner
    */
   printRunningBanner(proxyUrls: string[]): void {
-    console.log();
+    logger.emptyLine();
     const builder = box(48)
       .top()
       .left("Proxy is running! Configure your apps to use:");
@@ -355,7 +356,7 @@ export class BannerPlugin implements ProxyPlugin {
       .left("Press Ctrl+C to stop")
       .bottom()
       .print();
-    console.log();
+    logger.emptyLine();
   }
 
   /**
@@ -369,7 +370,7 @@ export class BannerPlugin implements ProxyPlugin {
     totalBytesIn?: number;
     totalBytesOut?: number;
   }): void {
-    console.log();
+    logger.emptyLine();
     const items: Array<{ key: string; value: string | number }> = [
       { key: "Total Requests:", value: stats.totalRequests },
       { key: "Unique Hosts:", value: stats.uniqueHosts },
@@ -387,7 +388,7 @@ export class BannerPlugin implements ProxyPlugin {
       );
     }
     
-    console.log(statsBox("Session Stats", items, 54));
+    logger.raw(statsBox("Session Stats", items, 54));
   }
 
   /**
@@ -396,15 +397,15 @@ export class BannerPlugin implements ProxyPlugin {
   printTopHostnames(hosts: Array<{ hostname: string; requests: number; bytesIn?: number; bytesOut?: number }>): void {
     if (hosts.length === 0) return;
     
-    console.log();
-    console.log("Top Hostnames:");
+    logger.emptyLine();
+    logger.raw("Top Hostnames:");
     for (const host of hosts) {
       const hasBytesInfo = host.bytesIn !== undefined || host.bytesOut !== undefined;
       if (hasBytesInfo) {
         const totalBytes = (host.bytesIn ?? 0) + (host.bytesOut ?? 0);
-        console.log(`  ${host.hostname}: ${host.requests} requests (${formatBytes(totalBytes)})`);
+        logger.raw(`  ${host.hostname}: ${host.requests} requests (${formatBytes(totalBytes)})`);
       } else {
-        console.log(`  ${host.hostname}: ${host.requests} requests`);
+        logger.raw(`  ${host.hostname}: ${host.requests} requests`);
       }
     }
   }

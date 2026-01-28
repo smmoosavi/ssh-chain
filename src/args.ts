@@ -3,6 +3,7 @@
  */
 
 import { parseArgs } from "util";
+import { logger } from "./logger.ts";
 
 export interface ParsedArgs {
   /** SSH server (positional argument or from config) */
@@ -51,7 +52,7 @@ Examples:
 `;
 
 export function printHelp(): void {
-  console.log(HELP_TEXT.trim());
+  logger.raw(HELP_TEXT.trim());
 }
 
 /** Build-time git hash (injected via --define during build) */
@@ -78,7 +79,7 @@ export function printVersion(): void {
   const gitHash = getGitHash();
   const dirtyIndicator = isGitDirty() ? " 🔧" : "";
   const versionStr = gitHash ? `${version} (${gitHash})${dirtyIndicator}` : version;
-  console.log(`ssh-chain v${versionStr}`);
+  logger.raw(`ssh-chain v${versionStr}`);
 }
 
 export function parseArgv(argv: string[] = process.argv): ParsedArgs {

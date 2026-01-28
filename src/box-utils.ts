@@ -3,6 +3,8 @@
  * Provides helpers for creating bordered boxes with various text alignments
  */
 
+import { logger } from "./logger.ts";
+
 /**
  * Box style characters
  */
@@ -202,7 +204,7 @@ export class BoxBuilder {
    * Build and print to console
    */
   print(): void {
-    console.log(this.toString());
+    logger.raw(this.toString());
   }
 }
 

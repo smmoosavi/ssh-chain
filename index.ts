@@ -10,6 +10,7 @@ import {
   createDefaultPlugins,
   BannerPlugin,
 } from "./src/plugins.ts";
+import { logger } from "./src/logger.ts";
 
 async function main() {
   // Parse command-line arguments
@@ -17,8 +18,8 @@ async function main() {
   try {
     args = parseArgv();
   } catch (error) {
-    console.error(`Error: ${error instanceof Error ? error.message : error}`);
-    console.error("\nRun 'ssh-chain --help' for usage information.");
+    logger.error(`Error: ${error instanceof Error ? error.message : error}`);
+    logger.error("\nRun 'ssh-chain --help' for usage information.");
     process.exit(1);
   }
 
@@ -34,14 +35,14 @@ async function main() {
   }
 
   // Load configuration using the config manager
-  console.log("[Main] Loading configuration...");
+  logger.info("[Main] Loading configuration...");
   let config;
   try {
     const configManager = createConfigManager(args);
     config = await configManager.load();
-    console.log(`[Main] Config loaded: SSH ${config.sshServer.host}, HTTP proxy :${config.httpProxyPort}`);
+    logger.info(`[Main] Config loaded: SSH ${config.sshServer.host}, HTTP proxy :${config.httpProxyPort}`);
   } catch (error) {
-    console.error(`[Main] Failed to load config: ${error instanceof Error ? error.message : error}`);
+    logger.error(`[Main] Failed to load config: ${error instanceof Error ? error.message : error}`);
     process.exit(1);
   }
 
@@ -63,30 +64,30 @@ async function main() {
     if (isShuttingDown || !app.isAppRunning()) return;
     isShuttingDown = true;
 
-    console.log();
-    console.log(`[Main] Received ${signal}, shutting down...`);
+    logger.emptyLine();
+    logger.info(`[Main] Received ${signal}, shutting down...`);
 
     // Print final stats using banner plugin (including active connections)
     const stats = app.getSessionStatsIncludingActive();
     bannerPlugin?.printSessionStats(stats);
     bannerPlugin?.printTopHostnames(stats.topHostnames);
-    console.log();
+    logger.emptyLine();
 
     // Add timeout to shutdown process (max 5 seconds)
     const shutdownTimeout = setTimeout(() => {
-      console.log("[Main] Shutdown timeout reached, forcing exit...");
+      logger.warn("[Main] Shutdown timeout reached, forcing exit...");
       process.exit(1);
     }, 5000);
 
     try {
       await app.stop();
     } catch (error) {
-      console.error(`[Main] Error during shutdown: ${error}`);
+      logger.error(`[Main] Error during shutdown: ${error}`);
     } finally {
       clearTimeout(shutdownTimeout);
     }
 
-    console.log("[Main] Goodbye!");
+    logger.info("[Main] Goodbye!");
     process.exit(0);
   }
 
@@ -95,13 +96,13 @@ async function main() {
 
   try {
     // Start the app (SSH tunnel + HTTP proxy)
-    console.log();
+    logger.emptyLine();
     await app.start();
 
     // Print running banner
     bannerPlugin?.printRunningBanner(app.getProxyUrls());
   } catch (error) {
-    console.error(`[Main] Startup failed: ${error}`);
+    logger.error(`[Main] Startup failed: ${error}`);
     await app.stop();
     process.exit(1);
   }

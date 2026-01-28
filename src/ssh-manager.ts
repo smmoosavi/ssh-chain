@@ -8,6 +8,7 @@ import type { Config, SSHServerConfig } from "./config.ts";
 import { spawn, type ChildProcess } from "node:child_process";
 import { createConnection } from "node:net";
 import { TypedEventEmitter, type SSHManagerEvents } from "./types.ts";
+import { logger } from "./logger.ts";
 
 /**
  * Sleep for the specified duration
@@ -145,7 +146,7 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
    */
   async start(): Promise<void> {
     if (this.state.isRunning) {
-      console.log("[SSH] Already running, skipping start");
+      logger.info("[SSH] Already running, skipping start");
       return;
     }
 
@@ -153,10 +154,10 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
     this.usedPorts.add(port);
     this.state.currentPort = port;
 
-    console.log(`[SSH] Starting SOCKS5 proxy on port ${port}...`);
+    logger.info(`[SSH] Starting SOCKS5 proxy on port ${port}...`);
 
     const args = this.buildSSHArgs(port);
-    console.log(`[SSH] Command: ssh ${args.join(" ")}`);
+    logger.info(`[SSH] Command: ssh ${args.join(" ")}`);
 
     this.process = spawn("ssh", args, {
       stdio: ["ignore", "pipe", "pipe"],
