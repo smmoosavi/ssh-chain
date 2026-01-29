@@ -61,12 +61,12 @@ async function buildJsBundle(
   }
 
   // Add shebang and make executable
-  const outputPath = `${OUT_DIR}/ssh-chain.js`;
+  const outputPath = `${OUT_DIR}/ssh-chain`;
   const content = await Bun.file(outputPath).text();
   await Bun.write(outputPath, `#!/usr/bin/env node\n${content}`);
   await $`chmod +x ${outputPath}`.quiet();
 
-  console.log('✅ dist/ssh-chain.js');
+  console.log('✅ dist/ssh-chain');
   return true;
 }
 
@@ -86,7 +86,7 @@ async function buildBinary(
       BUILD_GIT_DIRTY: JSON.stringify(isDirty),
     },
     compile: {
-      outfile: `${OUT_DIR}/ssh-chain`,
+      outfile: `${OUT_DIR}/ssh-chain.bun`,
     },
   });
 
@@ -98,7 +98,7 @@ async function buildBinary(
     return false;
   }
 
-  console.log('✅ dist/ssh-chain');
+  console.log('✅ dist/ssh-chain.bun');
   return true;
 }
 
@@ -126,8 +126,8 @@ async function main(): Promise<void> {
     console.log('🎉 Build complete!\n');
     console.log('Usage:');
     console.log('  Binary:  ./dist/ssh-chain');
-    console.log('  Node.js: node dist/ssh-chain.js');
-    console.log('  Bun:     bun dist/ssh-chain.js');
+    console.log('  Node.js: node dist/ssh-chain');
+    console.log('  Bun:     bun dist/ssh-chain.bun');
   } else {
     console.error('💥 Build failed');
     process.exit(1);

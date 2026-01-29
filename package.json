@@ -1,9 +1,30 @@
 {
   "name": "ssh-chain",
   "version": "1.0.0",
+  "description": "HTTP proxy through SSH SOCKS5 tunnel",
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "bin": {
+    "ssh-chain": "./dist/ssh-chain"
+  },
+  "files": [
+    "dist/ssh-chain",
+    "README.md",
+    "config.example.json"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smmoosavi/ssh-chain.git"
+  },
+  "bugs": {
+    "url": "https://github.com/smmoosavi/ssh-chain/issues"
+  },
+  "homepage": "https://github.com/smmoosavi/ssh-chain#readme",
+  "author": "smmoosavi",
   "scripts": {
     "prepare": "husky",
     "pre-commit": "tsc && lint-staged",

@@ -8,29 +8,53 @@ HTTP proxy through SSH SOCKS5 tunnel.
 pnpm install
 ```
 
+## Building
+
+Build the project (requires Bun for building):
+
+```bash
+bun run build
+```
+
+This creates:
+
+- `dist/ssh-chain` - Executable that runs with Node.js (recommended)
+  - Requires Node.js in runtime
+  - Smaller size (~400KB)
+  - No known bugs
+- `dist/ssh-chain.bun` - Bun-specific binary
+  - Standalone binary (no runtime required)
+  - Larger size (~100MB)
+  - Known bug: [incorrect byte usage display](https://github.com/oven-sh/bun/issues/26553)
+
+**Note:** We recommend using Node.js to run the built binary due to [a Bun issue with memory statistics](https://github.com/oven-sh/bun/issues/26553).
+
 ## Usage
 
 ### Quick start (no config file needed)
 
 ```bash
 # Connect using ~/.ssh/config host
-bun run index.ts my-server
+./dist/ssh-chain my-server
 
 # Connect with user@host
-bun run index.ts user@192.168.1.100
+./dist/ssh-chain user@192.168.1.100
+
+# Or during development (requires Bun)
+bun run index.ts my-server
 ```
 
 ### With config file
 
 ```bash
 # Use default config.json
-bun run index.ts
+./dist/ssh-chain
 
 # Use custom config file
-bun run index.ts -c ./path/to/config.json
+./dist/ssh-chain -c ./path/to/config.json
 
 # Override sshServer from config file
-bun run index.ts other-server -c ./path/to/config.json
+./dist/ssh-chain other-server -c ./path/to/config.json
 ```
 
 ### Command-line options
@@ -55,16 +79,16 @@ Options:
 
 ```bash
 # Simple usage
-bun run index.ts my-server
+./dist/ssh-chain my-server
 
 # Custom HTTP proxy port
-bun run index.ts my-server -p 8080
+./dist/ssh-chain my-server -p 8080
 
 # Enable debug logging
-bun run index.ts my-server --log-level debug
+./dist/ssh-chain my-server --log-level debug
 
 # Use custom config with server override
-bun run index.ts other-server -c ./custom-config.json
+./dist/ssh-chain other-server -c ./custom-config.json
 ```
 
 ## Configuration
@@ -97,4 +121,23 @@ You can configure domains that should bypass the proxy and connect directly. Add
 
 Direct connections are labeled with `[DIRECT]` in the logs.
 
-This project was created using `bun init` in bun v1.3.1. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+## Development
+
+This project requires [Bun](https://bun.sh) for building and development:
+
+```bash
+# Install dependencies
+pnpm install
+
+# Run in development mode (with auto-reload)
+bun run dev
+
+# Run tests
+bun test
+
+# Type check
+pnpm typecheck
+
+# Build for production
+bun run build
+```
