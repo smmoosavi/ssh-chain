@@ -4,7 +4,6 @@
   "description": "HTTP proxy through SSH SOCKS5 tunnel",
   "module": "index.ts",
   "type": "module",
-  "private": true,
   "bin": {
     "ssh-chain": "./dist/ssh-chain"
   },
