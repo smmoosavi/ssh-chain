@@ -8,6 +8,7 @@ import { SSHManager } from "./ssh-manager.ts";
 import { ProxyServer } from "./proxy-server.ts";
 import { PluginManager, StatsPlugin, BannerPlugin } from "./plugins.ts";
 import type { ProxyPlugin } from "./types.ts";
+import { formatDurationCompact } from "./format-utils.ts";
 
 export interface AppOptions {
   /** Configuration */
@@ -162,7 +163,7 @@ export class App {
     const uptime = sshState.startTime
       ? Math.floor((Date.now() - sshState.startTime.getTime()) / 1000)
       : 0;
-    const uptimeStr = `${Math.floor(uptime / 60)}m ${uptime % 60}s`;
+    const uptimeStr = formatDurationCompact(uptime);
 
     if (statsPlugin) {
       const stats = statsPlugin.getStats();
@@ -204,7 +205,7 @@ export class App {
     const uptime = sshState.startTime
       ? Math.floor((Date.now() - sshState.startTime.getTime()) / 1000)
       : 0;
-    const uptimeStr = `${Math.floor(uptime / 60)}m ${uptime % 60}s`;
+    const uptimeStr = formatDurationCompact(uptime);
 
     if (statsPlugin) {
       const activeConns = this.pluginManager.getActiveConnectionStats();

@@ -10,6 +10,7 @@ import type { SSHManager, SSHManagerState } from "./ssh-manager.ts";
 import { box, statsBox, centeredBox } from "./box-utils.ts";
 import { logger } from "./logger.ts";
 import { valuesToGraph } from "./graph-utils.ts";
+import { formatBytes, formatTimeOnly, formatSpeed, formatUptime } from "./format-utils.ts";
 
 /**
  * Statistics tracking for proxy requests
@@ -246,7 +247,7 @@ export class ConsoleLoggerPlugin implements ProxyPlugin {
     ctx.onProxyEvent("request", (info) => {
       if (!this.shouldLog("info")) return;
 
-      const timestamp = info.timestamp.toISOString().slice(11, 19);
+      const timestamp = formatTimeOnly(info.timestamp);
       const directLabel = info.isDirect ? " [DIRECT]" : "";
       const displayUrl = info.isHttps
         ? `${info.hostname}:${info.port}`
@@ -299,17 +300,6 @@ export class ConsoleLoggerPlugin implements ProxyPlugin {
       logger.writeError(`[SSH] ${data}`);
     });
   }
-}
-
-/**
- * Format bytes to human-readable string
- */
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  const value = bytes / Math.pow(1024, i);
-  return `${value.toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
 }
 
 /**
@@ -808,16 +798,8 @@ export class FooterPlugin implements ProxyPlugin {
    * Format uptime from start time
    */
   private formatUptime(): string {
-    if (!this.startTime) return "0m 0s";
-    const seconds = Math.floor((Date.now() - this.startTime.getTime()) / 1000);
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m ${secs}s`;
-    }
-    return `${minutes}m ${secs}s`;
+    if (!this.startTime) return "0s";
+    return formatUptime(this.startTime);
   }
 
   /**
@@ -854,7 +836,7 @@ export class FooterPlugin implements ProxyPlugin {
     const statsLine = [
       `Uptime: ${this.formatUptime()}`.padEnd(17),
       `Total: ${formatBytes(totalUsage.totalBytes)}`.padEnd(17),
-      `Speed: ${formatBytes(lastSpeed)}/s`.padEnd(17),
+      `Speed: ${formatSpeed(lastSpeed)}`.padEnd(17),
     ].join(" | ");
     lines.push(statsLine);
 
