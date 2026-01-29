@@ -5,10 +5,10 @@
   "module": "index.ts",
   "type": "module",
   "bin": {
-    "ssh-chain": "./dist/ssh-chain"
+    "ssh-chain": "dist/ssh-chain.js"
   },
   "files": [
-    "dist/ssh-chain",
+    "dist/ssh-chain.js",
     "README.md",
     "config.example.json"
   ],

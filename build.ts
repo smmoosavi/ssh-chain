@@ -60,12 +60,15 @@ async function buildJsBundle(
     return false;
   }
 
-  // Add shebang and make executable
-  const outputPath = `${OUT_DIR}/ssh-chain`;
-  const content = await Bun.file(outputPath).text();
-  await Bun.write(outputPath, `#!/usr/bin/env node\n${content}`);
-  await $`chmod +x ${outputPath}`.quiet();
+  // ssh-chain.js stays without shebang
+  // Create ssh-chain with shebang
+  const jsPath = `${OUT_DIR}/ssh-chain.js`;
+  const execPath = `${OUT_DIR}/ssh-chain`;
+  const jsContent = await Bun.file(jsPath).text();
+  await Bun.write(execPath, `#!/usr/bin/env node\n${jsContent}`);
+  await $`chmod +x ${execPath}`.quiet();
 
+  console.log('✅ dist/ssh-chain.js');
   console.log('✅ dist/ssh-chain');
   return true;
 }
