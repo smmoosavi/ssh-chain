@@ -2,8 +2,8 @@
  * Command-line argument parsing for SSH Chain Proxy
  */
 
-import { parseArgs } from "util";
-import { logger } from "./logger.ts";
+import { parseArgs } from 'util';
+import { logger } from './logger.ts';
 
 export interface ParsedArgs {
   /** SSH server (positional argument or from config) */
@@ -15,7 +15,7 @@ export interface ParsedArgs {
   /** HTTP proxy port */
   httpProxyPort?: number;
   /** Log level */
-  logLevel?: "debug" | "info" | "warn" | "error";
+  logLevel?: 'debug' | 'info' | 'warn' | 'error';
   /** Show help */
   help: boolean;
   /** Show version */
@@ -62,23 +62,25 @@ declare const BUILD_GIT_DIRTY: boolean | undefined;
 
 function getGitHash(): string | null {
   // Use build-time constant if available
-  if (typeof BUILD_GIT_HASH !== "undefined" && BUILD_GIT_HASH) {
+  if (typeof BUILD_GIT_HASH !== 'undefined' && BUILD_GIT_HASH) {
     return BUILD_GIT_HASH;
   }
   return null;
 }
 
 function isGitDirty(): boolean {
-  return typeof BUILD_GIT_DIRTY !== "undefined" && BUILD_GIT_DIRTY === true;
+  return typeof BUILD_GIT_DIRTY !== 'undefined' && BUILD_GIT_DIRTY === true;
 }
 
 export function printVersion(): void {
   // Read version from package.json
-  const pkg = require("../package.json");
-  const version = pkg.version || "0.0.0";
+  const pkg = require('../package.json');
+  const version = pkg.version || '0.0.0';
   const gitHash = getGitHash();
-  const dirtyIndicator = isGitDirty() ? " 🔧" : "";
-  const versionStr = gitHash ? `${version} (${gitHash})${dirtyIndicator}` : version;
+  const dirtyIndicator = isGitDirty() ? ' 🔧' : '';
+  const versionStr = gitHash
+    ? `${version} (${gitHash})${dirtyIndicator}`
+    : version;
   logger.raw(`ssh-chain v${versionStr}`);
 }
 
@@ -87,29 +89,29 @@ export function parseArgv(argv: string[] = process.argv): ParsedArgs {
     args: argv.slice(2), // Skip node/bun and script path
     options: {
       config: {
-        type: "string",
-        short: "c",
+        type: 'string',
+        short: 'c',
       },
       host: {
-        type: "string",
-        short: "H",
+        type: 'string',
+        short: 'H',
       },
       port: {
-        type: "string",
-        short: "p",
+        type: 'string',
+        short: 'p',
       },
-      "log-level": {
-        type: "string",
-        short: "l",
+      'log-level': {
+        type: 'string',
+        short: 'l',
       },
       help: {
-        type: "boolean",
-        short: "h",
+        type: 'boolean',
+        short: 'h',
         default: false,
       },
       version: {
-        type: "boolean",
-        short: "v",
+        type: 'boolean',
+        short: 'v',
         default: false,
       },
     },
@@ -128,15 +130,15 @@ export function parseArgv(argv: string[] = process.argv): ParsedArgs {
   }
 
   // Validate log level
-  let logLevel: ParsedArgs["logLevel"];
-  if (values["log-level"]) {
-    const level = values["log-level"];
-    if (!["debug", "info", "warn", "error"].includes(level)) {
+  let logLevel: ParsedArgs['logLevel'];
+  if (values['log-level']) {
+    const level = values['log-level'];
+    if (!['debug', 'info', 'warn', 'error'].includes(level)) {
       throw new Error(
-        `Invalid log level: ${level}. Must be one of: debug, info, warn, error`
+        `Invalid log level: ${level}. Must be one of: debug, info, warn, error`,
       );
     }
-    logLevel = level as ParsedArgs["logLevel"];
+    logLevel = level as ParsedArgs['logLevel'];
   }
 
   // Get SSH server from positional argument (first non-option argument)

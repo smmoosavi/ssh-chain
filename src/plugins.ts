@@ -3,14 +3,25 @@
  * Provides extensible plugins for logging, statistics, and reporting
  */
 
-import type { Config } from "./config.ts";
-import type { ProxyPlugin, PluginContext, ProxyRequestInfo, ProxyServerEvents, SSHManagerEvents } from "./types.ts";
-import type { ProxyServer } from "./proxy-server.ts";
-import type { SSHManager, SSHManagerState } from "./ssh-manager.ts";
-import { box, statsBox, centeredBox } from "./box-utils.ts";
-import { logger } from "./logger.ts";
-import { valuesToGraph } from "./graph-utils.ts";
-import { formatBytes, formatTimeOnly, formatSpeed, formatUptime } from "./format-utils.ts";
+import type { Config } from './config.ts';
+import type {
+  ProxyPlugin,
+  PluginContext,
+  ProxyRequestInfo,
+  ProxyServerEvents,
+  SSHManagerEvents,
+} from './types.ts';
+import type { ProxyServer } from './proxy-server.ts';
+import type { SSHManager, SSHManagerState } from './ssh-manager.ts';
+import { box, statsBox, centeredBox } from './box-utils.ts';
+import { logger } from './logger.ts';
+import { valuesToGraph } from './graph-utils.ts';
+import {
+  formatBytes,
+  formatTimeOnly,
+  formatSpeed,
+  formatUptime,
+} from './format-utils.ts';
 
 /**
  * Statistics tracking for proxy requests
@@ -21,20 +32,23 @@ export interface ProxyStats {
   proxiedRequests: number;
   totalBytesIn: number;
   totalBytesOut: number;
-  hostnameStats: Map<string, {
-    requests: number;
-    directRequests: number;
-    bytesIn: number;
-    bytesOut: number;
-    lastAccess: Date;
-  }>;
+  hostnameStats: Map<
+    string,
+    {
+      requests: number;
+      directRequests: number;
+      bytesIn: number;
+      bytesOut: number;
+      lastAccess: Date;
+    }
+  >;
 }
 
 /**
  * Plugin that collects statistics about proxy usage
  */
 export class StatsPlugin implements ProxyPlugin {
-  readonly name = "stats";
+  readonly name = 'stats';
   private stats: ProxyStats = {
     totalRequests: 0,
     directRequests: 0,
@@ -45,7 +59,7 @@ export class StatsPlugin implements ProxyPlugin {
   };
 
   onRegister(ctx: PluginContext): void {
-    ctx.onProxyEvent("request", (info) => {
+    ctx.onProxyEvent('request', (info) => {
       this.stats.totalRequests++;
       if (info.isDirect) {
         this.stats.directRequests++;
@@ -69,12 +83,12 @@ export class StatsPlugin implements ProxyPlugin {
       }
     });
 
-    ctx.onProxyEvent("connectionClosed", (_connectionId, stats, hostname) => {
+    ctx.onProxyEvent('connectionClosed', (_connectionId, stats, hostname) => {
       // srcRxBytes = bytes received from client (client upload = our download)
       // trgRxBytes = bytes received from target (target download = our download)
       // srcTxBytes = bytes sent to client (client download)
       // trgTxBytes = bytes sent to target (target upload)
-      
+
       // Total bytes in = what we received from target
       const bytesIn = stats.trgRxBytes ?? 0;
       // Total bytes out = what we sent to target
@@ -164,7 +178,10 @@ export class StatsPlugin implements ProxyPlugin {
    * Get statistics including active connections that haven't closed yet
    */
   getStatsIncludingActive(
-    activeConnections: Array<{ hostname: string; stats: { trgRxBytes: number | null; trgTxBytes: number | null } }>
+    activeConnections: Array<{
+      hostname: string;
+      stats: { trgRxBytes: number | null; trgTxBytes: number | null };
+    }>,
   ): Readonly<ProxyStats> {
     // Start with current stats
     let totalBytesIn = this.stats.totalBytesIn;
@@ -203,8 +220,11 @@ export class StatsPlugin implements ProxyPlugin {
    * Get top hostnames including active connections
    */
   getTopHostnamesIncludingActive(
-    activeConnections: Array<{ hostname: string; stats: { trgRxBytes: number | null; trgTxBytes: number | null } }>,
-    limit: number = 10
+    activeConnections: Array<{
+      hostname: string;
+      stats: { trgRxBytes: number | null; trgTxBytes: number | null };
+    }>,
+    limit: number = 10,
   ): Array<{
     hostname: string;
     requests: number;
@@ -230,73 +250,75 @@ export class StatsPlugin implements ProxyPlugin {
  * Plugin that logs proxy events to console
  */
 export class ConsoleLoggerPlugin implements ProxyPlugin {
-  readonly name = "console-logger";
-  private logLevel: "debug" | "info" | "warn" | "error";
+  readonly name = 'console-logger';
+  private logLevel: 'debug' | 'info' | 'warn' | 'error';
 
-  constructor(logLevel: "debug" | "info" | "warn" | "error" = "info") {
+  constructor(logLevel: 'debug' | 'info' | 'warn' | 'error' = 'info') {
     this.logLevel = logLevel;
   }
 
-  private shouldLog(level: "debug" | "info" | "warn" | "error"): boolean {
-    const levels = ["debug", "info", "warn", "error"];
+  private shouldLog(level: 'debug' | 'info' | 'warn' | 'error'): boolean {
+    const levels = ['debug', 'info', 'warn', 'error'];
     return levels.indexOf(level) >= levels.indexOf(this.logLevel);
   }
 
   onRegister(ctx: PluginContext): void {
     // Log proxy requests
-    ctx.onProxyEvent("request", (info) => {
-      if (!this.shouldLog("info")) return;
+    ctx.onProxyEvent('request', (info) => {
+      if (!this.shouldLog('info')) return;
 
       const timestamp = formatTimeOnly(info.timestamp);
-      const directLabel = info.isDirect ? " [DIRECT]" : "";
+      const directLabel = info.isDirect ? ' [DIRECT]' : '';
       const displayUrl = info.isHttps
         ? `${info.hostname}:${info.port}`
         : info.url;
-      
+
       logger.info(`[${timestamp}] ${info.method} ${displayUrl}${directLabel}`);
     });
 
     // Log proxy errors
-    ctx.onProxyEvent("error", (error, context) => {
-      if (!this.shouldLog("error")) return;
-      logger.error(`[Proxy] Error${context ? ` (${context})` : ""}: ${error.message}`);
+    ctx.onProxyEvent('error', (error, context) => {
+      if (!this.shouldLog('error')) return;
+      logger.error(
+        `[Proxy] Error${context ? ` (${context})` : ''}: ${error.message}`,
+      );
     });
 
     // Log proxy started
-    ctx.onProxyEvent("started", (port, proxyUrl) => {
-      if (!this.shouldLog("info")) return;
+    ctx.onProxyEvent('started', (port, proxyUrl) => {
+      if (!this.shouldLog('info')) return;
       logger.info(`[Proxy] HTTP proxy listening on ${proxyUrl}`);
     });
 
     // Log proxy stopped
-    ctx.onProxyEvent("stopped", () => {
-      if (!this.shouldLog("info")) return;
-      logger.info("[Proxy] Stopped");
+    ctx.onProxyEvent('stopped', () => {
+      if (!this.shouldLog('info')) return;
+      logger.info('[Proxy] Stopped');
     });
 
     // Log SSH events
-    ctx.onSSHEvent("ready", (port) => {
-      if (!this.shouldLog("info")) return;
+    ctx.onSSHEvent('ready', (port) => {
+      if (!this.shouldLog('info')) return;
       logger.info(`[SSH] SOCKS5 proxy ready on port ${port}`);
     });
 
-    ctx.onSSHEvent("error", (error) => {
-      if (!this.shouldLog("error")) return;
+    ctx.onSSHEvent('error', (error) => {
+      if (!this.shouldLog('error')) return;
       logger.error(`[SSH] Error: ${error.message}`);
     });
 
-    ctx.onSSHEvent("exit", (code) => {
-      if (!this.shouldLog("info")) return;
+    ctx.onSSHEvent('exit', (code) => {
+      if (!this.shouldLog('info')) return;
       logger.info(`[SSH] Process exited with code ${code}`);
     });
 
-    ctx.onSSHEvent("restart", (count) => {
-      if (!this.shouldLog("info")) return;
+    ctx.onSSHEvent('restart', (count) => {
+      if (!this.shouldLog('info')) return;
       logger.info(`[SSH] Restarted (total restarts: ${count})`);
     });
 
-    ctx.onSSHEvent("stderr", (data) => {
-      if (!this.shouldLog("debug")) return;
+    ctx.onSSHEvent('stderr', (data) => {
+      if (!this.shouldLog('debug')) return;
       logger.writeError(`[SSH] ${data}`);
     });
   }
@@ -306,10 +328,10 @@ export class ConsoleLoggerPlugin implements ProxyPlugin {
  * Plugin that provides a banner display
  */
 export class BannerPlugin implements ProxyPlugin {
-  readonly name = "banner";
+  readonly name = 'banner';
   private title: string;
 
-  constructor(title: string = "SSH Chain Proxy Manager") {
+  constructor(title: string = 'SSH Chain Proxy Manager') {
     this.title = title;
   }
 
@@ -321,11 +343,7 @@ export class BannerPlugin implements ProxyPlugin {
    * Print startup banner
    */
   printStartupBanner(): void {
-    box(40)
-      .top()
-      .center(this.title)
-      .bottom()
-      .print();
+    box(40).top().center(this.title).bottom().print();
     logger.emptyLine();
   }
 
@@ -336,17 +354,13 @@ export class BannerPlugin implements ProxyPlugin {
     logger.emptyLine();
     const builder = box(48)
       .top()
-      .left("Proxy is running! Configure your apps to use:");
-    
+      .left('Proxy is running! Configure your apps to use:');
+
     for (const url of proxyUrls) {
       builder.left(url);
     }
-    
-    builder
-      .empty()
-      .left("Press Ctrl+C to stop")
-      .bottom()
-      .print();
+
+    builder.empty().left('Press Ctrl+C to stop').bottom().print();
     logger.emptyLine();
   }
 
@@ -363,38 +377,48 @@ export class BannerPlugin implements ProxyPlugin {
   }): void {
     logger.emptyLine();
     const items: Array<{ key: string; value: string | number }> = [
-      { key: "Total Requests:", value: stats.totalRequests },
-      { key: "Unique Hosts:", value: stats.uniqueHosts },
-      { key: "Session Uptime:", value: stats.uptime },
-      { key: "SSH Restarts:", value: stats.restarts },
+      { key: 'Total Requests:', value: stats.totalRequests },
+      { key: 'Unique Hosts:', value: stats.uniqueHosts },
+      { key: 'Session Uptime:', value: stats.uptime },
+      { key: 'SSH Restarts:', value: stats.restarts },
     ];
-    
+
     if (stats.totalBytesIn !== undefined || stats.totalBytesOut !== undefined) {
       const bytesIn = stats.totalBytesIn ?? 0;
       const bytesOut = stats.totalBytesOut ?? 0;
       items.push(
-        { key: "Data Downloaded:", value: formatBytes(bytesIn) },
-        { key: "Data Uploaded:", value: formatBytes(bytesOut) },
-        { key: "Total Transfer:", value: formatBytes(bytesIn + bytesOut) },
+        { key: 'Data Downloaded:', value: formatBytes(bytesIn) },
+        { key: 'Data Uploaded:', value: formatBytes(bytesOut) },
+        { key: 'Total Transfer:', value: formatBytes(bytesIn + bytesOut) },
       );
     }
-    
-    logger.raw(statsBox("Session Stats", items, 54));
+
+    logger.raw(statsBox('Session Stats', items, 54));
   }
 
   /**
    * Print top hostnames
    */
-  printTopHostnames(hosts: Array<{ hostname: string; requests: number; bytesIn?: number; bytesOut?: number }>): void {
+  printTopHostnames(
+    hosts: Array<{
+      hostname: string;
+      requests: number;
+      bytesIn?: number;
+      bytesOut?: number;
+    }>,
+  ): void {
     if (hosts.length === 0) return;
-    
+
     logger.emptyLine();
-    logger.raw("Top Hostnames:");
+    logger.raw('Top Hostnames:');
     for (const host of hosts) {
-      const hasBytesInfo = host.bytesIn !== undefined || host.bytesOut !== undefined;
+      const hasBytesInfo =
+        host.bytesIn !== undefined || host.bytesOut !== undefined;
       if (hasBytesInfo) {
         const totalBytes = (host.bytesIn ?? 0) + (host.bytesOut ?? 0);
-        logger.raw(`  ${host.hostname}: ${host.requests} requests (${formatBytes(totalBytes)})`);
+        logger.raw(
+          `  ${host.hostname}: ${host.requests} requests (${formatBytes(totalBytes)})`,
+        );
       } else {
         logger.raw(`  ${host.hostname}: ${host.requests} requests`);
       }
@@ -417,7 +441,7 @@ export interface ByteUsageSnapshot {
  * and provides total usage including active connections
  */
 export class ByteUsageHistoryPlugin implements ProxyPlugin {
-  readonly name = "byte-usage-history";
+  readonly name = 'byte-usage-history';
   private statsPlugin: StatsPlugin | null = null;
   private pluginManager: PluginManager | null = null;
   private history: ByteUsageSnapshot[] = [];
@@ -433,7 +457,7 @@ export class ByteUsageHistoryPlugin implements ProxyPlugin {
   onRegister(ctx: PluginContext): void {
     // Store context for later use
     this.pluginManager = ctx as PluginManager;
-    
+
     // Start the interval to collect stats every second
     this.intervalId = setInterval(() => this.collectSnapshot(), 1000);
   }
@@ -483,20 +507,27 @@ export class ByteUsageHistoryPlugin implements ProxyPlugin {
   /**
    * Get total byte usage including active connections
    */
-  getTotalUsage(): { totalBytesIn: number; totalBytesOut: number; totalBytes: number } {
+  getTotalUsage(): {
+    totalBytesIn: number;
+    totalBytesOut: number;
+    totalBytes: number;
+  } {
     if (!this.statsPlugin || !this.pluginManager) {
       return { totalBytesIn: 0, totalBytesOut: 0, totalBytes: 0 };
     }
 
     // Get active connection stats from plugin manager
     const activeConnections = this.pluginManager.getActiveConnectionStats();
-    
+
     // Get stats including active connections from StatsPlugin
     const stats = this.statsPlugin.getStatsIncludingActive(
-      activeConnections.map(c => ({
+      activeConnections.map((c) => ({
         hostname: c.hostname,
-        stats: { trgRxBytes: c.stats.trgRxBytes, trgTxBytes: c.stats.trgTxBytes }
-      }))
+        stats: {
+          trgRxBytes: c.stats.trgRxBytes,
+          trgTxBytes: c.stats.trgTxBytes,
+        },
+      })),
     );
 
     return {
@@ -517,13 +548,19 @@ export class ByteUsageHistoryPlugin implements ProxyPlugin {
    * Get the most recent snapshot
    */
   getLatestSnapshot(): ByteUsageSnapshot | null {
-    return this.history.length > 0 ? this.history[this.history.length - 1] ?? null : null;
+    return this.history.length > 0
+      ? (this.history[this.history.length - 1] ?? null)
+      : null;
   }
 
   /**
    * Get average bytes per second over the history
    */
-  getAverageBytesPerSecond(): { avgBytesIn: number; avgBytesOut: number; avgTotalBytes: number } {
+  getAverageBytesPerSecond(): {
+    avgBytesIn: number;
+    avgBytesOut: number;
+    avgTotalBytes: number;
+  } {
     if (this.history.length === 0) {
       return { avgBytesIn: 0, avgBytesOut: 0, avgTotalBytes: 0 };
     }
@@ -534,7 +571,7 @@ export class ByteUsageHistoryPlugin implements ProxyPlugin {
         bytesOut: acc.bytesOut + snapshot.bytesOut,
         totalBytes: acc.totalBytes + snapshot.totalBytes,
       }),
-      { bytesIn: 0, bytesOut: 0, totalBytes: 0 }
+      { bytesIn: 0, bytesOut: 0, totalBytes: 0 },
     );
 
     return {
@@ -547,7 +584,11 @@ export class ByteUsageHistoryPlugin implements ProxyPlugin {
   /**
    * Get peak bytes per second from history
    */
-  getPeakBytesPerSecond(): { peakBytesIn: number; peakBytesOut: number; peakTotalBytes: number } {
+  getPeakBytesPerSecond(): {
+    peakBytesIn: number;
+    peakBytesOut: number;
+    peakTotalBytes: number;
+  } {
     if (this.history.length === 0) {
       return { peakBytesIn: 0, peakBytesOut: 0, peakTotalBytes: 0 };
     }
@@ -558,7 +599,7 @@ export class ByteUsageHistoryPlugin implements ProxyPlugin {
         peakBytesOut: Math.max(peak.peakBytesOut, snapshot.bytesOut),
         peakTotalBytes: Math.max(peak.peakTotalBytes, snapshot.totalBytes),
       }),
-      { peakBytesIn: 0, peakBytesOut: 0, peakTotalBytes: 0 }
+      { peakBytesIn: 0, peakBytesOut: 0, peakTotalBytes: 0 },
     );
   }
 
@@ -664,7 +705,7 @@ export class PluginManager implements PluginContext {
 
   onProxyEvent<K extends keyof ProxyServerEvents>(
     event: K,
-    handler: (...args: ProxyServerEvents[K]) => void
+    handler: (...args: ProxyServerEvents[K]) => void,
   ): void {
     if (this.proxyServer) {
       const typedHandler = handler as (...args: unknown[]) => void;
@@ -679,7 +720,7 @@ export class PluginManager implements PluginContext {
 
   onSSHEvent<K extends keyof SSHManagerEvents>(
     event: K,
-    handler: (...args: SSHManagerEvents[K]) => void
+    handler: (...args: SSHManagerEvents[K]) => void,
   ): void {
     if (this.sshManager) {
       const typedHandler = handler as (...args: unknown[]) => void;
@@ -696,10 +737,28 @@ export class PluginManager implements PluginContext {
     return this.config;
   }
 
-  getActiveConnectionStats(): Array<{ connectionId: number; hostname: string; stats: { srcTxBytes: number; srcRxBytes: number; trgTxBytes: number | null; trgRxBytes: number | null } }> {
+  getActiveConnectionStats(): Array<{
+    connectionId: number;
+    hostname: string;
+    stats: {
+      srcTxBytes: number;
+      srcRxBytes: number;
+      trgTxBytes: number | null;
+      trgRxBytes: number | null;
+    };
+  }> {
     if (!this.proxyServer) return [];
 
-    const result: Array<{ connectionId: number; hostname: string; stats: { srcTxBytes: number; srcRxBytes: number; trgTxBytes: number | null; trgRxBytes: number | null } }> = [];
+    const result: Array<{
+      connectionId: number;
+      hostname: string;
+      stats: {
+        srcTxBytes: number;
+        srcRxBytes: number;
+        trgTxBytes: number | null;
+        trgRxBytes: number | null;
+      };
+    }> = [];
     const connectionIds = this.proxyServer.getActiveConnectionIds();
 
     for (const connectionId of connectionIds) {
@@ -718,12 +777,12 @@ export class PluginManager implements PluginContext {
  * Plugin that displays a persistent footer with live stats
  */
 export class FooterPlugin implements ProxyPlugin {
-  readonly name = "footer";
+  readonly name = 'footer';
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private statsPlugin: StatsPlugin | null = null;
   private byteUsageHistoryPlugin: ByteUsageHistoryPlugin | null = null;
   private pluginManager: PluginManager | null = null;
-  private sshHost: string = "";
+  private sshHost: string = '';
   private httpPort: number = 0;
   private startTime: Date | null = null;
   private sshRestarts: number = 0;
@@ -761,7 +820,7 @@ export class FooterPlugin implements ProxyPlugin {
     this.startTime = new Date();
 
     // Track SSH restarts
-    ctx.onSSHEvent("restart", (count) => {
+    ctx.onSSHEvent('restart', (count) => {
       this.sshRestarts = count;
     });
   }
@@ -771,10 +830,10 @@ export class FooterPlugin implements ProxyPlugin {
    */
   start(): void {
     if (this.intervalId) return;
-    
+
     // Initial render
     this.updateFooter();
-    
+
     // Update every second
     this.intervalId = setInterval(() => this.updateFooter(), 1000);
   }
@@ -798,7 +857,7 @@ export class FooterPlugin implements ProxyPlugin {
    * Format uptime from start time
    */
   private formatUptime(): string {
-    if (!this.startTime) return "0s";
+    if (!this.startTime) return '0s';
     return formatUptime(this.startTime);
   }
 
@@ -808,70 +867,78 @@ export class FooterPlugin implements ProxyPlugin {
   private updateFooter(): void {
     const lines: string[] = [];
     const width = 60;
-    const divider = "─".repeat(width);
-    
+    const divider = '─'.repeat(width);
+
     // Line 1: Divider
     lines.push(divider);
-    
+
     // Line 2: Connection info
-    const connInfo = [`SSH: ${this.sshHost}`.padEnd(17), `HTTP Proxy: :${this.httpPort}`].join(" | ");
+    const connInfo = [
+      `SSH: ${this.sshHost}`.padEnd(17),
+      `HTTP Proxy: :${this.httpPort}`,
+    ].join(' | ');
     lines.push(connInfo);
-    
-    
+
     // Line 3: SSH stats (active connections, ssh resets)
-    const activeConns = this.pluginManager?.getActiveConnectionStats().length ?? 0;
+    const activeConns =
+      this.pluginManager?.getActiveConnectionStats().length ?? 0;
 
     const sshLine = [
       `Active Con: ${activeConns}`.padEnd(17),
       `SSH Resets: ${this.sshRestarts}`.padEnd(17),
-    ].join(" | ");
+    ].join(' | ');
     lines.push(sshLine);
 
     // Line 4: Stats (uptime, total usage, speed)
-    const totalUsage = this.byteUsageHistoryPlugin?.getTotalUsage() ?? { totalBytes: 0 };
+    const totalUsage = this.byteUsageHistoryPlugin?.getTotalUsage() ?? {
+      totalBytes: 0,
+    };
     const history = this.byteUsageHistoryPlugin?.getHistory() ?? [];
-    const lastSnapshot = history.length > 0 ? history[history.length - 1] : null;
+    const lastSnapshot =
+      history.length > 0 ? history[history.length - 1] : null;
     const lastSpeed = lastSnapshot ? lastSnapshot.totalBytes : 0;
-    
+
     const statsLine = [
       `Uptime: ${this.formatUptime()}`.padEnd(17),
       `Total: ${formatBytes(totalUsage.totalBytes)}`.padEnd(17),
       `Speed: ${formatSpeed(lastSpeed)}`.padEnd(17),
-    ].join(" | ");
+    ].join(' | ');
     lines.push(statsLine);
 
-    
     // Line 5: Byte usage graph (last 60 seconds)
     const graphLine = this.buildGraphLine(history, width);
     lines.push(graphLine);
     lines.push(divider);
-    
+
     logger.setFooter(lines);
   }
 
   /**
    * Build the graph line showing byte usage over time
    */
-  private buildGraphLine(history: ReadonlyArray<ByteUsageSnapshot>, width: number): string {
+  private buildGraphLine(
+    history: ReadonlyArray<ByteUsageSnapshot>,
+    width: number,
+  ): string {
     // Get last 60 values (or pad with zeros if less)
     const values: number[] = [];
     const targetLength = width;
-    
+
     // Pad with zeros at the beginning if we don't have enough data
     const padding = Math.max(0, targetLength - history.length);
     for (let i = 0; i < padding; i++) {
       values.push(0);
     }
-    
+
     // Add actual values
     const startIdx = Math.max(0, history.length - targetLength);
     for (let i = startIdx; i < history.length; i++) {
       values.push(history[i]?.totalBytes ?? 0);
     }
-    
+
     // Use configured max value for consistent scaling
     const maxValue = this.graphMaxValue;
-    
+
     // Build the graph using graph-utils
     return valuesToGraph(values, maxValue);
   }
@@ -880,14 +947,16 @@ export class FooterPlugin implements ProxyPlugin {
 /**
  * Create default plugins for standard functionality
  */
-export function createDefaultPlugins(logLevel: "debug" | "info" | "warn" | "error" = "info"): ProxyPlugin[] {
+export function createDefaultPlugins(
+  logLevel: 'debug' | 'info' | 'warn' | 'error' = 'info',
+): ProxyPlugin[] {
   const statsPlugin = new StatsPlugin();
   const byteUsageHistoryPlugin = new ByteUsageHistoryPlugin();
   byteUsageHistoryPlugin.setStatsPlugin(statsPlugin);
-  
+
   const footerPlugin = new FooterPlugin();
   footerPlugin.setPlugins(statsPlugin, byteUsageHistoryPlugin);
-  
+
   return [
     statsPlugin,
     byteUsageHistoryPlugin,

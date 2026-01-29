@@ -11,10 +11,7 @@
     "port": 22,
     "username": "your-username",
     "identityFile": "~/.ssh/id_rsa",
-    "options": [
-      "StrictHostKeyChecking=no",
-      "UserKnownHostsFile=/dev/null"
-    ]
+    "options": ["StrictHostKeyChecking=no", "UserKnownHostsFile=/dev/null"]
   },
 
   "portRange": {

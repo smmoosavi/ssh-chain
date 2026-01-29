@@ -3,7 +3,7 @@
  * Provides structured logging with support for advanced terminal features
  */
 
-export type LogLevel = "debug" | "info" | "warn" | "error";
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
   debug: 0,
@@ -54,7 +54,7 @@ export interface Logger {
 /**
  * Create a logger instance
  */
-export function createLogger(initialLevel: LogLevel = "info"): Logger {
+export function createLogger(initialLevel: LogLevel = 'info'): Logger {
   let currentLevel = initialLevel;
   let footerLines: string[] = [];
   let footerRendered = false;
@@ -72,8 +72,8 @@ export function createLogger(initialLevel: LogLevel = "info"): Logger {
     }
     // Move cursor up N lines and clear each line
     for (let i = 0; i < footerLines.length; i++) {
-      process.stdout.write("\x1b[1A"); // Move up one line
-      process.stdout.write("\x1b[2K"); // Clear the line
+      process.stdout.write('\x1b[1A'); // Move up one line
+      process.stdout.write('\x1b[2K'); // Clear the line
     }
     footerRendered = false;
   };
@@ -83,11 +83,11 @@ export function createLogger(initialLevel: LogLevel = "info"): Logger {
    */
   const buildClearFooterSequence = (): string => {
     if (!footerRendered || footerLines.length === 0 || !process.stdout.isTTY) {
-      return "";
+      return '';
     }
-    let seq = "";
+    let seq = '';
     for (let i = 0; i < footerLines.length; i++) {
-      seq += "\x1b[1A\x1b[2K"; // Move up + clear line
+      seq += '\x1b[1A\x1b[2K'; // Move up + clear line
     }
     return seq;
   };
@@ -97,9 +97,9 @@ export function createLogger(initialLevel: LogLevel = "info"): Logger {
    */
   const buildFooterContent = (): string => {
     if (footerLines.length === 0 || !process.stdout.isTTY) {
-      return "";
+      return '';
     }
-    return footerLines.join("\n") + "\n";
+    return footerLines.join('\n') + '\n';
   };
 
   /**
@@ -110,7 +110,7 @@ export function createLogger(initialLevel: LogLevel = "info"): Logger {
       return;
     }
     for (const line of footerLines) {
-      process.stdout.write(line + "\n");
+      process.stdout.write(line + '\n');
     }
     footerRendered = true;
   };
@@ -122,12 +122,13 @@ export function createLogger(initialLevel: LogLevel = "info"): Logger {
   const logWithFooter = (message: string): void => {
     if (!process.stdout.isTTY || footerLines.length === 0) {
       // No footer or not a TTY, just write directly
-      process.stdout.write(message + "\n");
+      process.stdout.write(message + '\n');
       return;
     }
 
     // Buffer: clear footer + message + footer
-    const buffer = buildClearFooterSequence() + message + "\n" + buildFooterContent();
+    const buffer =
+      buildClearFooterSequence() + message + '\n' + buildFooterContent();
     footerRendered = false; // Will be true after write
     process.stdout.write(buffer);
     footerRendered = true;
@@ -138,7 +139,7 @@ export function createLogger(initialLevel: LogLevel = "info"): Logger {
    */
   const logWithFooterStderr = (message: string): void => {
     if (!process.stdout.isTTY || footerLines.length === 0) {
-      process.stderr.write(message + "\n");
+      process.stderr.write(message + '\n');
       return;
     }
 
@@ -147,7 +148,7 @@ export function createLogger(initialLevel: LogLevel = "info"): Logger {
     const footerContent = buildFooterContent();
     footerRendered = false;
     process.stdout.write(clearSeq);
-    process.stderr.write(message + "\n");
+    process.stderr.write(message + '\n');
     process.stdout.write(footerContent);
     footerRendered = true;
   };
@@ -156,32 +157,32 @@ export function createLogger(initialLevel: LogLevel = "info"): Logger {
    * Format arguments to string (like console.log does)
    */
   const formatArgs = (...args: unknown[]): string => {
-    return args.map(arg => 
-      typeof arg === "string" ? arg : String(arg)
-    ).join(" ");
+    return args
+      .map((arg) => (typeof arg === 'string' ? arg : String(arg)))
+      .join(' ');
   };
 
   return {
     debug: (...args: unknown[]) => {
-      if (shouldLog("debug")) {
+      if (shouldLog('debug')) {
         logWithFooter(formatArgs(...args));
       }
     },
 
     info: (...args: unknown[]) => {
-      if (shouldLog("info")) {
+      if (shouldLog('info')) {
         logWithFooter(formatArgs(...args));
       }
     },
 
     warn: (...args: unknown[]) => {
-      if (shouldLog("warn")) {
+      if (shouldLog('warn')) {
         logWithFooterStderr(formatArgs(...args));
       }
     },
 
     error: (...args: unknown[]) => {
-      if (shouldLog("error")) {
+      if (shouldLog('error')) {
         logWithFooterStderr(formatArgs(...args));
       }
     },
@@ -191,7 +192,7 @@ export function createLogger(initialLevel: LogLevel = "info"): Logger {
     },
 
     emptyLine: () => {
-      logWithFooter("");
+      logWithFooter('');
     },
 
     write: (text: string) => {
@@ -208,13 +209,13 @@ export function createLogger(initialLevel: LogLevel = "info"): Logger {
 
     clearLine: () => {
       if (process.stdout.isTTY) {
-        process.stdout.write("\x1b[2K");
+        process.stdout.write('\x1b[2K');
       }
     },
 
     carriageReturn: () => {
       if (process.stdout.isTTY) {
-        process.stdout.write("\r");
+        process.stdout.write('\r');
       }
     },
 
@@ -254,4 +255,4 @@ export function createLogger(initialLevel: LogLevel = "info"): Logger {
 /**
  * Default global logger instance
  */
-export const logger = createLogger("info");
+export const logger = createLogger('info');

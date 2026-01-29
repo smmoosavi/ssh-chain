@@ -2,12 +2,14 @@
  * Common types and interfaces for SSH Chain Proxy
  */
 
-import { EventEmitter } from "events";
+import { EventEmitter } from 'events';
 
 /**
  * Typed EventEmitter for strong typing on events
  */
-export class TypedEventEmitter<TEvents extends { [key: string]: unknown[] }> extends EventEmitter {
+export class TypedEventEmitter<
+  TEvents extends { [key: string]: unknown[] },
+> extends EventEmitter {
   override emit<TEventName extends keyof TEvents & string>(
     eventName: TEventName,
     ...args: TEvents[TEventName]
@@ -17,21 +19,21 @@ export class TypedEventEmitter<TEvents extends { [key: string]: unknown[] }> ext
 
   override on<TEventName extends keyof TEvents & string>(
     eventName: TEventName,
-    handler: (...args: TEvents[TEventName]) => void
+    handler: (...args: TEvents[TEventName]) => void,
   ): this {
     return super.on(eventName, handler as (...args: unknown[]) => void);
   }
 
   override once<TEventName extends keyof TEvents & string>(
     eventName: TEventName,
-    handler: (...args: TEvents[TEventName]) => void
+    handler: (...args: TEvents[TEventName]) => void,
   ): this {
     return super.once(eventName, handler as (...args: unknown[]) => void);
   }
 
   override off<TEventName extends keyof TEvents & string>(
     eventName: TEventName,
-    handler: (...args: TEvents[TEventName]) => void
+    handler: (...args: TEvents[TEventName]) => void,
   ): this {
     return super.off(eventName, handler as (...args: unknown[]) => void);
   }
@@ -71,7 +73,11 @@ export interface ProxyRequestInfo {
 export type ProxyServerEvents = {
   request: [info: ProxyRequestInfo];
   connect: [hostname: string, port: number];
-  connectionClosed: [connectionId: number, stats: ConnectionStats, hostname: string];
+  connectionClosed: [
+    connectionId: number,
+    stats: ConnectionStats,
+    hostname: string,
+  ];
   error: [error: Error, context?: string];
   started: [port: number, proxyUrl: string];
   stopped: [];
@@ -110,15 +116,19 @@ export interface PluginContext {
   /** Subscribe to proxy events */
   onProxyEvent<K extends keyof ProxyServerEvents>(
     event: K,
-    handler: (...args: ProxyServerEvents[K]) => void
+    handler: (...args: ProxyServerEvents[K]) => void,
   ): void;
   /** Subscribe to SSH events */
   onSSHEvent<K extends keyof SSHManagerEvents>(
     event: K,
-    handler: (...args: SSHManagerEvents[K]) => void
+    handler: (...args: SSHManagerEvents[K]) => void,
   ): void;
   /** Get config */
   getConfig(): unknown;
   /** Get stats for active connections that haven't closed yet */
-  getActiveConnectionStats(): Array<{ connectionId: number; hostname: string; stats: ConnectionStats }>;
+  getActiveConnectionStats(): Array<{
+    connectionId: number;
+    hostname: string;
+    stats: ConnectionStats;
+  }>;
 }

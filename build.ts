@@ -6,24 +6,24 @@
  * 2. dist/ssh-chain - Single binary (bun runtime + code)
  */
 
-import { $ } from "bun";
+import { $ } from 'bun';
 
-const ENTRY_POINT = "./index.ts";
-const OUT_DIR = "./dist";
+const ENTRY_POINT = './index.ts';
+const OUT_DIR = './dist';
 
 async function getGitHash(): Promise<string> {
   try {
     const result = await $`git rev-parse --short HEAD`.quiet();
     return result.text().trim();
   } catch {
-    return "";
+    return '';
   }
 }
 
 async function isGitClean(): Promise<boolean> {
   try {
     const result = await $`git status --porcelain`.quiet();
-    return result.text().trim() === "";
+    return result.text().trim() === '';
   } catch {
     return true; // Assume clean if git not available
   }
@@ -33,36 +33,42 @@ async function ensureOutDir(): Promise<void> {
   await $`mkdir -p ${OUT_DIR}`.quiet();
 }
 
-async function buildJsBundle(gitHash: string, isDirty: boolean): Promise<boolean> {
-  console.log("📦 Building JS bundle...");
+async function buildJsBundle(
+  gitHash: string,
+  isDirty: boolean,
+): Promise<boolean> {
+  console.log('📦 Building JS bundle...');
 
   const result = await Bun.build({
     entrypoints: [ENTRY_POINT],
     outdir: OUT_DIR,
-    target: "node",
+    target: 'node',
     minify: true,
-    sourcemap: "external",
+    sourcemap: 'external',
     define: {
       BUILD_GIT_HASH: JSON.stringify(gitHash),
       BUILD_GIT_DIRTY: JSON.stringify(isDirty),
     },
-    naming: "ssh-chain.js",
+    naming: 'ssh-chain.js',
   });
 
   if (!result.success) {
-    console.error("❌ JS bundle build failed:");
+    console.error('❌ JS bundle build failed:');
     for (const log of result.logs) {
       console.error(log);
     }
     return false;
   }
 
-  console.log("✅ dist/ssh-chain.js");
+  console.log('✅ dist/ssh-chain.js');
   return true;
 }
 
-async function buildBinary(gitHash: string, isDirty: boolean): Promise<boolean> {
-  console.log("📦 Building binary...");
+async function buildBinary(
+  gitHash: string,
+  isDirty: boolean,
+): Promise<boolean> {
+  console.log('📦 Building binary...');
 
   // Bun.build with compile option is not available in the API
   // We need to use the CLI for compiled binaries
@@ -70,22 +76,22 @@ async function buildBinary(gitHash: string, isDirty: boolean): Promise<boolean> 
     const hashDefine = `BUILD_GIT_HASH=${JSON.stringify(gitHash)}`;
     const dirtyDefine = `BUILD_GIT_DIRTY=${JSON.stringify(isDirty)}`;
     await $`bun build --compile --minify --sourcemap --define ${hashDefine} --define ${dirtyDefine} ${ENTRY_POINT} --outfile ${OUT_DIR}/ssh-chain`;
-    console.log("✅ dist/ssh-chain");
+    console.log('✅ dist/ssh-chain');
     return true;
   } catch (error) {
-    console.error("❌ Binary build failed:", error);
+    console.error('❌ Binary build failed:', error);
     return false;
   }
 }
 
 async function main(): Promise<void> {
-  console.log("🔨 SSH Chain Build\n");
+  console.log('🔨 SSH Chain Build\n');
 
   const gitHash = await getGitHash();
   const isClean = await isGitClean();
-  
+
   if (gitHash) {
-    const cleanStatus = isClean ? "clean" : "dirty";
+    const cleanStatus = isClean ? 'clean' : 'dirty';
     console.log(`📝 Git hash: ${gitHash} (${cleanStatus})\n`);
   }
 
@@ -96,16 +102,16 @@ async function main(): Promise<void> {
     buildBinary(gitHash, !isClean),
   ]);
 
-  console.log("");
+  console.log('');
 
   if (results.every(Boolean)) {
-    console.log("🎉 Build complete!\n");
-    console.log("Usage:");
-    console.log("  Binary:  ./dist/ssh-chain");
-    console.log("  Node.js: node dist/ssh-chain.js");
-    console.log("  Bun:     bun dist/ssh-chain.js");
+    console.log('🎉 Build complete!\n');
+    console.log('Usage:');
+    console.log('  Binary:  ./dist/ssh-chain');
+    console.log('  Node.js: node dist/ssh-chain.js');
+    console.log('  Bun:     bun dist/ssh-chain.js');
   } else {
-    console.error("💥 Build failed");
+    console.error('💥 Build failed');
     process.exit(1);
   }
 }

@@ -3,7 +3,7 @@
  * Provides helpers for creating bordered boxes with various text alignments
  */
 
-import { logger } from "./logger.ts";
+import { logger } from './logger.ts';
 
 /**
  * Box style characters
@@ -21,24 +21,24 @@ export interface BoxStyle {
  * Default double-line box style
  */
 export const DOUBLE_BOX: BoxStyle = {
-  topLeft: "╔",
-  topRight: "╗",
-  bottomLeft: "╚",
-  bottomRight: "╝",
-  horizontal: "═",
-  vertical: "║",
+  topLeft: '╔',
+  topRight: '╗',
+  bottomLeft: '╚',
+  bottomRight: '╝',
+  horizontal: '═',
+  vertical: '║',
 };
 
 /**
  * Single-line box style
  */
 export const SINGLE_BOX: BoxStyle = {
-  topLeft: "┌",
-  topRight: "┐",
-  bottomLeft: "└",
-  bottomRight: "┘",
-  horizontal: "─",
-  vertical: "│",
+  topLeft: '┌',
+  topRight: '┐',
+  bottomLeft: '└',
+  bottomRight: '┘',
+  horizontal: '─',
+  vertical: '│',
 };
 
 /**
@@ -56,7 +56,7 @@ export interface BoxOptions {
 /**
  * Text alignment options
  */
-export type TextAlign = "left" | "center" | "right";
+export type TextAlign = 'left' | 'center' | 'right';
 
 /**
  * Box builder for creating formatted console boxes
@@ -84,7 +84,7 @@ export class BoxBuilder {
    * Pad content to fill the inner width
    */
   private padContent(content: string): string {
-    const paddingStr = " ".repeat(this.padding);
+    const paddingStr = ' '.repeat(this.padding);
     return `${paddingStr}${content}${paddingStr}`;
   }
 
@@ -105,11 +105,13 @@ export class BoxBuilder {
     const remainingWidth = this.width - titleWithPadding.length;
     const leftWidth = Math.floor(remainingWidth / 2);
     const rightWidth = remainingWidth - leftWidth;
-    
+
     const left = this.style.horizontal.repeat(leftWidth);
     const right = this.style.horizontal.repeat(rightWidth);
-    
-    this.lines.push(`${this.style.topLeft}${left}${titleWithPadding}${right}${this.style.topRight}`);
+
+    this.lines.push(
+      `${this.style.topLeft}${left}${titleWithPadding}${right}${this.style.topRight}`,
+    );
     return this;
   }
 
@@ -126,7 +128,7 @@ export class BoxBuilder {
    * Add an empty line inside the box
    */
   empty(): this {
-    const content = " ".repeat(this.width);
+    const content = ' '.repeat(this.width);
     this.lines.push(`${this.style.vertical}${content}${this.style.vertical}`);
     return this;
   }
@@ -134,7 +136,7 @@ export class BoxBuilder {
   /**
    * Add text with specified alignment
    */
-  text(content: string, align: TextAlign = "left"): this {
+  text(content: string, align: TextAlign = 'left'): this {
     const aligned = alignText(content, this.contentWidth, align);
     const padded = this.padContent(aligned);
     this.lines.push(`${this.style.vertical}${padded}${this.style.vertical}`);
@@ -145,21 +147,21 @@ export class BoxBuilder {
    * Add left-aligned text
    */
   left(content: string): this {
-    return this.text(content, "left");
+    return this.text(content, 'left');
   }
 
   /**
    * Add centered text
    */
   center(content: string): this {
-    return this.text(content, "center");
+    return this.text(content, 'center');
   }
 
   /**
    * Add right-aligned text
    */
   right(content: string): this {
-    return this.text(content, "right");
+    return this.text(content, 'right');
   }
 
   /**
@@ -168,21 +170,21 @@ export class BoxBuilder {
   keyValue(key: string, value: string | number): this {
     const valueStr = String(value);
     const gap = this.contentWidth - key.length - valueStr.length;
-    
+
     if (gap < 1) {
       // If content is too long, truncate key
       const maxKeyLen = this.contentWidth - valueStr.length - 1;
       const truncatedKey = key.slice(0, maxKeyLen);
       const newGap = this.contentWidth - truncatedKey.length - valueStr.length;
-      const content = `${truncatedKey}${" ".repeat(newGap)}${valueStr}`;
+      const content = `${truncatedKey}${' '.repeat(newGap)}${valueStr}`;
       const padded = this.padContent(content);
       this.lines.push(`${this.style.vertical}${padded}${this.style.vertical}`);
     } else {
-      const content = `${key}${" ".repeat(gap)}${valueStr}`;
+      const content = `${key}${' '.repeat(gap)}${valueStr}`;
       const padded = this.padContent(content);
       this.lines.push(`${this.style.vertical}${padded}${this.style.vertical}`);
     }
-    
+
     return this;
   }
 
@@ -197,7 +199,7 @@ export class BoxBuilder {
    * Build and return as a single string
    */
   toString(): string {
-    return this.lines.join("\n");
+    return this.lines.join('\n');
   }
 
   /**
@@ -211,24 +213,28 @@ export class BoxBuilder {
 /**
  * Align text within a given width
  */
-export function alignText(text: string, width: number, align: TextAlign): string {
+export function alignText(
+  text: string,
+  width: number,
+  align: TextAlign,
+): string {
   const textLen = text.length;
-  
+
   if (textLen >= width) {
     return text.slice(0, width);
   }
-  
+
   const remaining = width - textLen;
-  
+
   switch (align) {
-    case "left":
-      return text + " ".repeat(remaining);
-    case "right":
-      return " ".repeat(remaining) + text;
-    case "center": {
+    case 'left':
+      return text + ' '.repeat(remaining);
+    case 'right':
+      return ' '.repeat(remaining) + text;
+    case 'center': {
       const leftPad = Math.floor(remaining / 2);
       const rightPad = remaining - leftPad;
-      return " ".repeat(leftPad) + text + " ".repeat(rightPad);
+      return ' '.repeat(leftPad) + text + ' '.repeat(rightPad);
     }
   }
 }
@@ -243,7 +249,11 @@ export function box(width: number, style?: BoxStyle): BoxBuilder {
 /**
  * Create a simple box with centered content
  */
-export function centeredBox(content: string[], width: number, style?: BoxStyle): string {
+export function centeredBox(
+  content: string[],
+  width: number,
+  style?: BoxStyle,
+): string {
   const builder = new BoxBuilder({ width, style });
   builder.top();
   for (const line of content) {
@@ -260,7 +270,7 @@ export function statsBox(
   title: string,
   stats: Array<{ key: string; value: string | number }>,
   width: number,
-  style?: BoxStyle
+  style?: BoxStyle,
 ): string {
   const builder = new BoxBuilder({ width, style });
   builder.topWithTitle(title);

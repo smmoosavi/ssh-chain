@@ -3,12 +3,12 @@
  * Uses composition to bring together all components
  */
 
-import type { Config } from "./config.ts";
-import { SSHManager } from "./ssh-manager.ts";
-import { ProxyServer } from "./proxy-server.ts";
-import { PluginManager, StatsPlugin, BannerPlugin } from "./plugins.ts";
-import type { ProxyPlugin } from "./types.ts";
-import { formatDurationCompact } from "./format-utils.ts";
+import type { Config } from './config.ts';
+import { SSHManager } from './ssh-manager.ts';
+import { ProxyServer } from './proxy-server.ts';
+import { PluginManager, StatsPlugin, BannerPlugin } from './plugins.ts';
+import type { ProxyPlugin } from './types.ts';
+import { formatDurationCompact } from './format-utils.ts';
 
 export interface AppOptions {
   /** Configuration */
@@ -39,7 +39,8 @@ export class App {
 
     // Use provided managers or create defaults
     this.sshManager = options.sshManager ?? new SSHManager(this.config);
-    this.proxyServer = options.proxyServer ?? new ProxyServer(this.config, this.sshManager);
+    this.proxyServer =
+      options.proxyServer ?? new ProxyServer(this.config, this.sshManager);
 
     // Wire up plugin manager
     this.pluginManager.setSSHManager(this.sshManager);
@@ -93,7 +94,7 @@ export class App {
    */
   async start(): Promise<void> {
     if (this.isRunning) {
-      throw new Error("App is already running");
+      throw new Error('App is already running');
     }
 
     // Start SSH tunnel first
@@ -156,7 +157,7 @@ export class App {
     restarts: number;
     topHostnames: Array<{ hostname: string; requests: number }>;
   } {
-    const statsPlugin = this.pluginManager.get<StatsPlugin>("stats");
+    const statsPlugin = this.pluginManager.get<StatsPlugin>('stats');
     const sshState = this.sshManager.getState();
 
     // Calculate uptime
@@ -196,9 +197,14 @@ export class App {
     restarts: number;
     totalBytesIn: number;
     totalBytesOut: number;
-    topHostnames: Array<{ hostname: string; requests: number; bytesIn: number; bytesOut: number }>;
+    topHostnames: Array<{
+      hostname: string;
+      requests: number;
+      bytesIn: number;
+      bytesOut: number;
+    }>;
   } {
-    const statsPlugin = this.pluginManager.get<StatsPlugin>("stats");
+    const statsPlugin = this.pluginManager.get<StatsPlugin>('stats');
     const sshState = this.sshManager.getState();
 
     // Calculate uptime
@@ -210,7 +216,10 @@ export class App {
     if (statsPlugin) {
       const activeConns = this.pluginManager.getActiveConnectionStats();
       const stats = statsPlugin.getStatsIncludingActive(activeConns);
-      const topHostnames = statsPlugin.getTopHostnamesIncludingActive(activeConns, 5);
+      const topHostnames = statsPlugin.getTopHostnamesIncludingActive(
+        activeConns,
+        5,
+      );
       return {
         totalRequests: stats.totalRequests,
         uniqueHosts: stats.hostnameStats.size,

@@ -3,16 +3,16 @@
  * Provides a flexible system for loading and merging configuration from multiple sources
  */
 
-import { z } from "zod";
-import type { Config } from "./config.ts";
-import type { ParsedArgs } from "./args.ts";
-import { fileExists, readFileText } from "./fs-utils.ts";
+import { z } from 'zod';
+import type { Config } from './config.ts';
+import type { ParsedArgs } from './args.ts';
+import { fileExists, readFileText } from './fs-utils.ts';
 import {
   ConfigSchema,
   SSHServerSchema,
   PortRangeSchema,
   LogLevelSchema,
-} from "./config.ts";
+} from './config.ts';
 
 /**
  * Zod schema for partial SSH server config (string or object)
@@ -29,7 +29,7 @@ const PartialSSHServerSchema = z
     }),
   ])
   .transform((value) => {
-    if (typeof value === "string") {
+    if (typeof value === 'string') {
       return { host: value };
     }
     return value;
@@ -38,20 +38,24 @@ const PartialSSHServerSchema = z
 /**
  * Zod schema for partial config that can be loaded from a source
  */
-const PartialConfigSchema = z.object({
-  sshServer: PartialSSHServerSchema.optional(),
-  portRange: z.object({
-    min: z.number().int().min(1024).max(65535),
-    max: z.number().int().min(1024).max(65535),
-  }).optional(),
-  httpProxyHost: z.string().optional(),
-  httpProxyPort: z.number().int().min(1).max(65535).optional(),
-  inactivityTimeout: z.number().int().min(1).optional(),
-  healthCheckInterval: z.number().int().min(1).optional(),
-  retryAttempts: z.number().int().min(0).optional(),
-  logLevel: LogLevelSchema.optional(),
-  directDomains: z.array(z.string()).optional(),
-}).partial();
+const PartialConfigSchema = z
+  .object({
+    sshServer: PartialSSHServerSchema.optional(),
+    portRange: z
+      .object({
+        min: z.number().int().min(1024).max(65535),
+        max: z.number().int().min(1024).max(65535),
+      })
+      .optional(),
+    httpProxyHost: z.string().optional(),
+    httpProxyPort: z.number().int().min(1).max(65535).optional(),
+    inactivityTimeout: z.number().int().min(1).optional(),
+    healthCheckInterval: z.number().int().min(1).optional(),
+    retryAttempts: z.number().int().min(0).optional(),
+    logLevel: LogLevelSchema.optional(),
+    directDomains: z.array(z.string()).optional(),
+  })
+  .partial();
 
 /**
  * Partial config that can be loaded from a source
@@ -74,18 +78,18 @@ export interface ConfigLoader {
  * Default configuration values
  */
 export class DefaultConfigLoader implements ConfigLoader {
-  readonly name = "defaults";
+  readonly name = 'defaults';
   readonly priority = 0;
 
   async load(): Promise<PartialConfig> {
     return {
       portRange: { min: 10000, max: 10100 },
-      httpProxyHost: "127.0.0.1",
+      httpProxyHost: '127.0.0.1',
       httpProxyPort: 4080,
       inactivityTimeout: 60,
       healthCheckInterval: 30,
       retryAttempts: 3,
-      logLevel: "info",
+      logLevel: 'info',
       directDomains: [],
     };
   }
@@ -95,7 +99,7 @@ export class DefaultConfigLoader implements ConfigLoader {
  * Load configuration from a JSON file
  */
 export class FileConfigLoader implements ConfigLoader {
-  readonly name = "file";
+  readonly name = 'file';
   readonly priority = 10;
   private configPath: string;
   private required: boolean;
@@ -123,8 +127,8 @@ export class FileConfigLoader implements ConfigLoader {
       }
       if (error instanceof z.ZodError) {
         const issues = error.issues
-          .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
-          .join("\n");
+          .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
+          .join('\n');
         throw new Error(`Configuration validation failed:\n${issues}`);
       }
       throw error;
@@ -136,7 +140,7 @@ export class FileConfigLoader implements ConfigLoader {
  * Load configuration from command-line arguments
  */
 export class ArgvConfigLoader implements ConfigLoader {
-  readonly name = "argv";
+  readonly name = 'argv';
   readonly priority = 20;
   private args: ParsedArgs;
 
@@ -171,7 +175,11 @@ export class ArgvConfigLoader implements ConfigLoader {
  * Zod schema for environment variable parsing
  */
 const EnvConfigSchema = z.object({
-  sshServer: z.string().min(1).transform((v) => ({ host: v })).optional(),
+  sshServer: z
+    .string()
+    .min(1)
+    .transform((v) => ({ host: v }))
+    .optional(),
   httpProxyHost: z.string().min(1).optional(),
   httpProxyPort: z.coerce.number().int().min(1).max(65535).optional(),
   logLevel: LogLevelSchema.optional(),
@@ -181,11 +189,11 @@ const EnvConfigSchema = z.object({
  * Load configuration from environment variables
  */
 export class EnvConfigLoader implements ConfigLoader {
-  readonly name = "env";
+  readonly name = 'env';
   readonly priority = 15;
   private prefix: string;
 
-  constructor(prefix: string = "SSH_CHAIN_") {
+  constructor(prefix: string = 'SSH_CHAIN_') {
     this.prefix = prefix;
   }
 
@@ -236,7 +244,9 @@ export class ConfigManager {
    */
   async load(): Promise<Config> {
     // Sort by priority (lower first)
-    const sortedLoaders = [...this.loaders].sort((a, b) => a.priority - b.priority);
+    const sortedLoaders = [...this.loaders].sort(
+      (a, b) => a.priority - b.priority,
+    );
 
     // Merge configs
     let merged: PartialConfig = {};
@@ -247,7 +257,7 @@ export class ConfigManager {
         merged = this.mergeConfigs(merged, partial);
       } catch (error) {
         throw new Error(
-          `Config loader "${loader.name}" failed: ${error instanceof Error ? error.message : error}`
+          `Config loader "${loader.name}" failed: ${error instanceof Error ? error.message : error}`,
         );
       }
     }
@@ -259,7 +269,10 @@ export class ConfigManager {
   /**
    * Deep merge two partial configs (second overrides first)
    */
-  private mergeConfigs(base: PartialConfig, override: PartialConfig): PartialConfig {
+  private mergeConfigs(
+    base: PartialConfig,
+    override: PartialConfig,
+  ): PartialConfig {
     const result: PartialConfig = { ...base };
 
     if (override.sshServer !== undefined) {
@@ -299,16 +312,16 @@ export class ConfigManager {
   private validateConfig(partial: PartialConfig): Config {
     if (!partial.sshServer?.host) {
       throw new Error(
-        "SSH server is required. Provide it as an argument or in the config file.\n" +
-          "Usage: ssh-chain <ssh-server> or ssh-chain -c <config-file>"
+        'SSH server is required. Provide it as an argument or in the config file.\n' +
+          'Usage: ssh-chain <ssh-server> or ssh-chain -c <config-file>',
       );
     }
 
     // Always append localhost and *.local to directDomains (user cannot bypass these)
-    const builtinDirectDomains = ["localhost", "*.local"];
+    const builtinDirectDomains = ['localhost', '*.local'];
     const userDirectDomains = partial.directDomains ?? [];
     const mergedDirectDomains = [
-      ...userDirectDomains.filter(d => !builtinDirectDomains.includes(d)),
+      ...userDirectDomains.filter((d) => !builtinDirectDomains.includes(d)),
       ...builtinDirectDomains,
     ];
 
@@ -330,7 +343,7 @@ export class ConfigManager {
  * Create a standard config manager with default loaders
  */
 export function createConfigManager(args: ParsedArgs): ConfigManager {
-  const configPath = args.configPath ?? "./config.json";
+  const configPath = args.configPath ?? './config.json';
   const isExplicit = args.configPath !== undefined;
 
   return new ConfigManager()

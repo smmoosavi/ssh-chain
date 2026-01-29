@@ -7,63 +7,73 @@
  * Block characters for graph rendering
  * Index 0 = empty (space), Index 8 = full block
  */
-export const BLOCK_CHARS = [" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"] as const;
+export const BLOCK_CHARS = [
+  ' ',
+  '▁',
+  '▂',
+  '▃',
+  '▄',
+  '▅',
+  '▆',
+  '▇',
+  '█',
+] as const;
 
 /**
  * Available colors for graph rendering
  */
 export type Color =
-  | "transparent"
-  | "darkRed"
-  | "orange"
-  | "yellow"
-  | "green"
-  | "blue"
-  | "white";
+  | 'transparent'
+  | 'darkRed'
+  | 'orange'
+  | 'yellow'
+  | 'green'
+  | 'blue'
+  | 'white';
 
 /**
  * Default color gradient from low to high values
  */
 export const DEFAULT_COLORS: Color[] = [
-  "transparent",
-  "darkRed",
-  "orange",
-  "yellow",
-  "green",
-  "blue",
-  "white",
+  'transparent',
+  'darkRed',
+  'orange',
+  'yellow',
+  'green',
+  'blue',
+  'white',
 ];
 
 /**
  * ANSI color codes for foreground
  */
 export const ANSI_FG: Record<Color, string> = {
-  transparent: "\x1b[39m",
-  darkRed: "\x1b[31m",
-  orange: "\x1b[38;5;208m",
-  yellow: "\x1b[33m",
-  green: "\x1b[32m",
-  blue: "\x1b[34m",
-  white: "\x1b[37m",
+  transparent: '\x1b[39m',
+  darkRed: '\x1b[31m',
+  orange: '\x1b[38;5;208m',
+  yellow: '\x1b[33m',
+  green: '\x1b[32m',
+  blue: '\x1b[34m',
+  white: '\x1b[37m',
 };
 
 /**
  * ANSI color codes for background
  */
 export const ANSI_BG: Record<Color, string> = {
-  transparent: "\x1b[49m",
-  darkRed: "\x1b[41m",
-  orange: "\x1b[48;5;208m",
-  yellow: "\x1b[43m",
-  green: "\x1b[42m",
-  blue: "\x1b[44m",
-  white: "\x1b[47m",
+  transparent: '\x1b[49m',
+  darkRed: '\x1b[41m',
+  orange: '\x1b[48;5;208m',
+  yellow: '\x1b[43m',
+  green: '\x1b[42m',
+  blue: '\x1b[44m',
+  white: '\x1b[47m',
 };
 
 /**
  * ANSI reset code
  */
-export const ANSI_RESET = "\x1b[0m";
+export const ANSI_RESET = '\x1b[0m';
 
 /**
  * Intermediate representation of a single graph bar
@@ -94,7 +104,7 @@ export interface GraphOptions {
 export function valueToGraphBar(
   value: number,
   maxValue: number,
-  options?: GraphOptions
+  options?: GraphOptions,
 ): GraphBar {
   const colors = options?.colors ?? DEFAULT_COLORS;
   const numColors = colors.length;
@@ -166,7 +176,7 @@ export function graphBarToAnsi(bar: GraphBar): string {
 export function valuesToGraphBars(
   values: number[],
   maxValue: number,
-  options?: GraphOptions
+  options?: GraphOptions,
 ): GraphBar[] {
   return values.map((value) => valueToGraphBar(value, maxValue, options));
 }
@@ -182,8 +192,8 @@ export function valuesToGraphBars(
 export function valuesToGraph(
   values: number[],
   maxValue: number,
-  options?: GraphOptions
+  options?: GraphOptions,
 ): string {
   const bars = valuesToGraphBars(values, maxValue, options);
-  return bars.map(graphBarToAnsi).join("");
+  return bars.map(graphBarToAnsi).join('');
 }

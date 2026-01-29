@@ -2,14 +2,14 @@
  * Configuration schema and loader for SSH Chain Proxy
  */
 
-import { z } from "zod";
-import type { ParsedArgs } from "./args.ts";
-import { fileExists, readFileText } from "./fs-utils.ts";
+import { z } from 'zod';
+import type { ParsedArgs } from './args.ts';
+import { fileExists, readFileText } from './fs-utils.ts';
 
 // SSH Server configuration schema (full object format)
 const SSHServerObjectSchema = z.object({
   /** SSH host - can be a hostname, IP, or .ssh/config Host entry */
-  host: z.string().min(1, "SSH host is required"),
+  host: z.string().min(1, 'SSH host is required'),
   /** SSH port (default: 22) */
   port: z.number().int().min(1).max(65535).optional(),
   /** Username for SSH connection */
@@ -25,7 +25,7 @@ const SSHServerObjectSchema = z.object({
 const SSHServerSchema = z
   .union([z.string().min(1), SSHServerObjectSchema])
   .transform((value): z.infer<typeof SSHServerObjectSchema> => {
-    if (typeof value === "string") {
+    if (typeof value === 'string') {
       return { host: value };
     }
     return value;
@@ -37,7 +37,7 @@ const OptionalSSHServerSchema = z
   .optional()
   .transform((value): z.infer<typeof SSHServerObjectSchema> | undefined => {
     if (value === undefined) return undefined;
-    if (typeof value === "string") {
+    if (typeof value === 'string') {
       return { host: value };
     }
     return value;
@@ -52,11 +52,11 @@ const PortRangeSchema = z
     max: z.number().int().min(1024).max(65535).default(10100),
   })
   .refine((data) => data.min <= data.max, {
-    message: "portRange.min must be less than or equal to max",
+    message: 'portRange.min must be less than or equal to max',
   });
 
 // Log level schema
-const LogLevelSchema = z.enum(["debug", "info", "warn", "error"]);
+const LogLevelSchema = z.enum(['debug', 'info', 'warn', 'error']);
 
 // Main configuration schema
 const ConfigSchema = z.object({
@@ -65,7 +65,7 @@ const ConfigSchema = z.object({
   /** Port range for dynamic SOCKS5 proxy allocation */
   portRange: PortRangeSchema.default({ min: 10000, max: 10100 }),
   /** Host for the HTTP proxy server to bind to */
-  httpProxyHost: z.string().default("127.0.0.1"),
+  httpProxyHost: z.string().default('127.0.0.1'),
   /** Port for the HTTP proxy server to listen on */
   httpProxyPort: z.number().int().min(1).max(65535).default(4080),
   /** Duration of no data flow before considering connection stalled (seconds) */
@@ -75,7 +75,7 @@ const ConfigSchema = z.object({
   /** Number of retry attempts before giving up */
   retryAttempts: z.number().int().min(0).optional().default(3),
   /** Logging level */
-  logLevel: LogLevelSchema.optional().default("info"),
+  logLevel: LogLevelSchema.optional().default('info'),
   /** List of domains that should bypass the proxy (support wildcards) */
   directDomains: z.array(z.string()).optional().default([]),
 });
@@ -87,7 +87,7 @@ const PartialConfigSchema = z.object({
   /** Port range for dynamic SOCKS5 proxy allocation */
   portRange: PortRangeSchema.default({ min: 10000, max: 10100 }),
   /** Host for the HTTP proxy server to bind to */
-  httpProxyHost: z.string().default("127.0.0.1"),
+  httpProxyHost: z.string().default('127.0.0.1'),
   /** Port for the HTTP proxy server to listen on */
   httpProxyPort: z.number().int().min(1).max(65535).default(4080),
   /** Duration of no data flow before considering connection stalled (seconds) */
@@ -97,7 +97,7 @@ const PartialConfigSchema = z.object({
   /** Number of retry attempts before giving up */
   retryAttempts: z.number().int().min(0).optional().default(3),
   /** Logging level */
-  logLevel: LogLevelSchema.optional().default("info"),
+  logLevel: LogLevelSchema.optional().default('info'),
   /** List of domains that should bypass the proxy (support wildcards) */
   directDomains: z.array(z.string()).optional().default([]),
 });
@@ -111,7 +111,7 @@ export type Config = z.infer<typeof ConfigSchema>;
  * Loads configuration from a JSON file (partial config, sshServer optional)
  */
 export async function loadConfigFile(
-  configPath: string
+  configPath: string,
 ): Promise<z.infer<typeof PartialConfigSchema>> {
   if (!(await fileExists(configPath))) {
     throw new Error(`Configuration file not found: ${configPath}`);
@@ -127,8 +127,8 @@ export async function loadConfigFile(
     }
     if (error instanceof z.ZodError) {
       const issues = error.issues
-        .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
-        .join("\n");
+        .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
+        .join('\n');
       throw new Error(`Configuration validation failed:\n${issues}`);
     }
     throw error;
@@ -142,7 +142,7 @@ export async function loadConfigFile(
 export async function resolveConfig(args: ParsedArgs): Promise<Config> {
   // Try to load config file if specified or if default exists
   let fileConfig: z.infer<typeof PartialConfigSchema> | undefined;
-  const configPath = args.configPath ?? "./config.json";
+  const configPath = args.configPath ?? './config.json';
 
   try {
     if (await fileExists(configPath)) {
@@ -163,8 +163,8 @@ export async function resolveConfig(args: ParsedArgs): Promise<Config> {
   const sshServer = args.sshServer ?? fileConfig?.sshServer?.host;
   if (!sshServer) {
     throw new Error(
-      "SSH server is required. Provide it as an argument or in the config file.\n" +
-        "Usage: ssh-chain <ssh-server> or ssh-chain -c <config-file>"
+      'SSH server is required. Provide it as an argument or in the config file.\n' +
+        'Usage: ssh-chain <ssh-server> or ssh-chain -c <config-file>',
     );
   }
 
@@ -172,14 +172,15 @@ export async function resolveConfig(args: ParsedArgs): Promise<Config> {
   const mergedConfig = {
     sshServer: args.sshServer
       ? { host: args.sshServer }
-      : fileConfig?.sshServer ?? { host: sshServer },
+      : (fileConfig?.sshServer ?? { host: sshServer }),
     portRange: fileConfig?.portRange ?? { min: 10000, max: 10100 },
-    httpProxyHost: args.httpProxyHost ?? fileConfig?.httpProxyHost ?? "127.0.0.1",
+    httpProxyHost:
+      args.httpProxyHost ?? fileConfig?.httpProxyHost ?? '127.0.0.1',
     httpProxyPort: args.httpProxyPort ?? fileConfig?.httpProxyPort ?? 4080,
     inactivityTimeout: fileConfig?.inactivityTimeout ?? 60,
     healthCheckInterval: fileConfig?.healthCheckInterval ?? 30,
     retryAttempts: fileConfig?.retryAttempts ?? 3,
-    logLevel: args.logLevel ?? fileConfig?.logLevel ?? "info",
+    logLevel: args.logLevel ?? fileConfig?.logLevel ?? 'info',
     directDomains: fileConfig?.directDomains ?? [],
   };
 
@@ -190,7 +191,7 @@ export async function resolveConfig(args: ParsedArgs): Promise<Config> {
  * Loads configuration from a JSON file (legacy, requires sshServer)
  */
 export async function loadConfig(
-  configPath: string = "./config.json"
+  configPath: string = './config.json',
 ): Promise<Config> {
   if (!(await fileExists(configPath))) {
     throw new Error(`Configuration file not found: ${configPath}`);
@@ -206,8 +207,8 @@ export async function loadConfig(
     }
     if (error instanceof z.ZodError) {
       const issues = error.issues
-        .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
-        .join("\n");
+        .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
+        .join('\n');
       throw new Error(`Configuration validation failed:\n${issues}`);
     }
     throw error;

@@ -4,11 +4,11 @@
  * Emits events for extensibility via plugins
  */
 
-import type { Config, SSHServerConfig } from "./config.ts";
-import { spawn, type ChildProcess } from "node:child_process";
-import { createConnection } from "node:net";
-import { TypedEventEmitter, type SSHManagerEvents } from "./types.ts";
-import { logger } from "./logger.ts";
+import type { Config, SSHServerConfig } from './config.ts';
+import { spawn, type ChildProcess } from 'node:child_process';
+import { createConnection } from 'node:net';
+import { TypedEventEmitter, type SSHManagerEvents } from './types.ts';
+import { logger } from './logger.ts';
 
 /**
  * Sleep for the specified duration
@@ -86,9 +86,7 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
       }
     }
 
-    throw new Error(
-      `No available ports in range ${min}-${max}`
-    );
+    throw new Error(`No available ports in range ${min}-${max}`);
   }
 
   /**
@@ -99,35 +97,35 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
     const args: string[] = [];
 
     // Dynamic port forwarding
-    args.push("-D", `127.0.0.1:${port}`);
+    args.push('-D', `127.0.0.1:${port}`);
 
     // Don't execute remote command, just forward
-    args.push("-N");
+    args.push('-N');
 
     // Exit if forwarding setup fails
-    args.push("-o", "ExitOnForwardFailure=yes");
+    args.push('-o', 'ExitOnForwardFailure=yes');
 
     // Keep connection alive
-    args.push("-o", "ServerAliveInterval=30");
-    args.push("-o", "ServerAliveCountMax=3");
+    args.push('-o', 'ServerAliveInterval=30');
+    args.push('-o', 'ServerAliveCountMax=3');
 
     // Verbose for debugging (we'll parse this to detect ready state)
-    args.push("-v");
+    args.push('-v');
 
     // Port (if not default)
     if (ssh.port && ssh.port !== 22) {
-      args.push("-p", String(ssh.port));
+      args.push('-p', String(ssh.port));
     }
 
     // Identity file
     if (ssh.identityFile) {
-      args.push("-i", ssh.identityFile);
+      args.push('-i', ssh.identityFile);
     }
 
     // Additional options
     if (ssh.options) {
       for (const opt of ssh.options) {
-        args.push("-o", opt);
+        args.push('-o', opt);
       }
     }
 
@@ -146,7 +144,7 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
    */
   async start(): Promise<void> {
     if (this.state.isRunning) {
-      logger.info("[SSH] Already running, skipping start");
+      logger.info('[SSH] Already running, skipping start');
       return;
     }
 
@@ -157,16 +155,16 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
     logger.info(`[SSH] Starting SOCKS5 proxy on port ${port}...`);
 
     const args = this.buildSSHArgs(port);
-    logger.info(`[SSH] Command: ssh ${args.join(" ")}`);
+    logger.info(`[SSH] Command: ssh ${args.join(' ')}`);
 
-    this.process = spawn("ssh", args, {
-      stdio: ["ignore", "pipe", "pipe"],
+    this.process = spawn('ssh', args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
 
     // Create a promise for process exit
     this.processExited = new Promise<number | null>((resolve) => {
-      this.process?.on("exit", (code) => resolve(code));
-      this.process?.on("error", () => resolve(null));
+      this.process?.on('exit', (code) => resolve(code));
+      this.process?.on('error', () => resolve(null));
     });
 
     this.state.isRunning = true;
@@ -192,15 +190,15 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
     // SSH verbose output goes to stderr
     const stderr = this.process.stderr;
     if (stderr) {
-      stderr.setEncoding("utf-8");
-      stderr.on("data", (text: string) => {
-        this.emit("stderr", text);
+      stderr.setEncoding('utf-8');
+      stderr.on('data', (text: string) => {
+        this.emit('stderr', text);
 
         // Check for activity indicators in SSH debug output
         if (
-          text.includes("Entering interactive session") ||
-          text.includes("channel") ||
-          text.includes("data")
+          text.includes('Entering interactive session') ||
+          text.includes('channel') ||
+          text.includes('data')
         ) {
           this.updateActivity();
         }
@@ -210,7 +208,7 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
     // Monitor process exit
     this.processExited?.then((code) => {
       this.state.isRunning = false;
-      this.emit("exit", code);
+      this.emit('exit', code);
 
       if (this.state.currentPort) {
         this.usedPorts.delete(this.state.currentPort);
@@ -223,7 +221,7 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
    */
   private async waitForReady(
     port: number,
-    timeout: number = 30000
+    timeout: number = 30000,
   ): Promise<void> {
     const startTime = Date.now();
     const checkInterval = 500;
@@ -231,16 +229,16 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
     while (Date.now() - startTime < timeout) {
       // Check if process died
       if (!this.state.isRunning || !this.process) {
-        throw new Error("SSH process died before becoming ready");
+        throw new Error('SSH process died before becoming ready');
       }
 
       // Try to connect to the SOCKS5 proxy
       const connected = await new Promise<boolean>((resolve) => {
-        const socket = createConnection({ host: "127.0.0.1", port }, () => {
+        const socket = createConnection({ host: '127.0.0.1', port }, () => {
           socket.end();
           resolve(true);
         });
-        socket.on("error", () => resolve(false));
+        socket.on('error', () => resolve(false));
         socket.setTimeout(1000, () => {
           socket.destroy();
           resolve(false);
@@ -249,7 +247,7 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
 
       if (connected) {
         // Connection successful, proxy is ready
-        this.emit("ready", port);
+        this.emit('ready', port);
         return;
       }
 
@@ -265,10 +263,10 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
    */
   updateActivity(bytes: number = 0): void {
     this.state.lastActivity = new Date();
-    this.emit("activity");
+    this.emit('activity');
     if (bytes > 0) {
       this.state.bytesTransferred += bytes;
-      this.emit("data", bytes);
+      this.emit('data', bytes);
     }
   }
 
@@ -317,21 +315,24 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
 
     if (this.process) {
       // Try graceful shutdown first (SIGTERM)
-      this.process.kill("SIGTERM");
-      
+      this.process.kill('SIGTERM');
+
       // Wait up to 2 seconds for graceful exit
-      const timeout = new Promise<void>(resolve => setTimeout(resolve, 2000));
+      const timeout = new Promise<void>((resolve) => setTimeout(resolve, 2000));
       const exited = this.processExited?.then(() => {}) ?? Promise.resolve();
-      
+
       await Promise.race([exited, timeout]);
-      
+
       // Force kill if still running
       if (!this.process.killed) {
-        this.process.kill("SIGKILL");
+        this.process.kill('SIGKILL');
         // Give it a brief moment to die
-        await Promise.race([this.processExited ?? Promise.resolve(), new Promise(resolve => setTimeout(resolve, 500))]);
+        await Promise.race([
+          this.processExited ?? Promise.resolve(),
+          new Promise((resolve) => setTimeout(resolve, 500)),
+        ]);
       }
-      
+
       this.process = null;
       this.processExited = null;
     }
@@ -350,7 +351,7 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
    */
   async restart(): Promise<void> {
     this.state.restartCount++;
-    this.emit("restart", this.state.restartCount);
+    this.emit('restart', this.state.restartCount);
 
     await this.stop();
     await sleep(1000); // Brief delay before restart

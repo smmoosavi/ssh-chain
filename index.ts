@@ -3,15 +3,15 @@
  * Main entry point - loads config, starts SSH tunnel, and HTTP proxy
  */
 
-import { parseArgv, printHelp, printVersion } from "./src/args.ts";
-import { createConfigManager } from "./src/config-loader.ts";
-import { createApp } from "./src/app.ts";
+import { parseArgv, printHelp, printVersion } from './src/args.ts';
+import { createConfigManager } from './src/config-loader.ts';
+import { createApp } from './src/app.ts';
 import {
   createDefaultPlugins,
   BannerPlugin,
   FooterPlugin,
-} from "./src/plugins.ts";
-import { logger } from "./src/logger.ts";
+} from './src/plugins.ts';
+import { logger } from './src/logger.ts';
 
 async function main() {
   // Parse command-line arguments
@@ -36,14 +36,18 @@ async function main() {
   }
 
   // Load configuration using the config manager
-  logger.info("[Main] Loading configuration...");
+  logger.info('[Main] Loading configuration...');
   let config;
   try {
     const configManager = createConfigManager(args);
     config = await configManager.load();
-    logger.info(`[Main] Config loaded: SSH ${config.sshServer.host}, HTTP proxy :${config.httpProxyPort}`);
+    logger.info(
+      `[Main] Config loaded: SSH ${config.sshServer.host}, HTTP proxy :${config.httpProxyPort}`,
+    );
   } catch (error) {
-    logger.error(`[Main] Failed to load config: ${error instanceof Error ? error.message : error}`);
+    logger.error(
+      `[Main] Failed to load config: ${error instanceof Error ? error.message : error}`,
+    );
     process.exit(1);
   }
 
@@ -51,11 +55,11 @@ async function main() {
   const plugins = createDefaultPlugins(config.logLevel);
 
   // Get banner plugin for startup display
-  const bannerPlugin = plugins.find((p) => p.name === "banner") as BannerPlugin;
+  const bannerPlugin = plugins.find((p) => p.name === 'banner') as BannerPlugin;
   bannerPlugin?.printStartupBanner();
 
   // Get footer plugin and configure it
-  const footerPlugin = plugins.find((p) => p.name === "footer") as FooterPlugin;
+  const footerPlugin = plugins.find((p) => p.name === 'footer') as FooterPlugin;
   footerPlugin?.setConnectionInfo(config.sshServer.host, config.httpProxyPort);
 
   // Create app with composition
@@ -83,7 +87,7 @@ async function main() {
 
     // Add timeout to shutdown process (max 5 seconds)
     const shutdownTimeout = setTimeout(() => {
-      logger.warn("[Main] Shutdown timeout reached, forcing exit...");
+      logger.warn('[Main] Shutdown timeout reached, forcing exit...');
       process.exit(1);
     }, 5000);
 
@@ -95,12 +99,12 @@ async function main() {
       clearTimeout(shutdownTimeout);
     }
 
-    logger.info("[Main] Goodbye!");
+    logger.info('[Main] Goodbye!');
     process.exit(0);
   }
 
-  process.on("SIGINT", () => shutdown("SIGINT"));
-  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 
   try {
     // Start the app (SSH tunnel + HTTP proxy)

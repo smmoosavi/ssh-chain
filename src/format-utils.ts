@@ -12,8 +12,8 @@
  * formatBytes(0) // "0 B"
  */
 export function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
+  if (bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   const value = bytes / Math.pow(1024, i);
   return `${value.toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
@@ -44,7 +44,7 @@ export function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
-  
+
   if (hours > 0) {
     return `${hours}h ${minutes}m ${secs}s`;
   }
@@ -112,7 +112,7 @@ export function formatDateISO(date: Date): string {
  * @example
  * formatDateLocale(new Date("2024-01-15T14:30:45")) // "1/15/2024, 2:30:45 PM"
  */
-export function formatDateLocale(date: Date, locale: string = "en-US"): string {
+export function formatDateLocale(date: Date, locale: string = 'en-US'): string {
   return date.toLocaleString(locale);
 }
 
@@ -125,7 +125,7 @@ export function formatDateLocale(date: Date, locale: string = "en-US"): string {
  * formatNumber(1234567) // "1,234,567"
  * formatNumber(1234567.89) // "1,234,567.89"
  */
-export function formatNumber(value: number, locale: string = "en-US"): string {
+export function formatNumber(value: number, locale: string = 'en-US'): string {
   return value.toLocaleString(locale);
 }
 
@@ -140,7 +140,11 @@ export function formatNumber(value: number, locale: string = "en-US"): string {
  * formatPercentage(75.5, 1, false) // "75.5%"
  * formatPercentage(0.12345, 2) // "12.35%"
  */
-export function formatPercentage(value: number, decimals: number = 1, isDecimal: boolean = true): string {
+export function formatPercentage(
+  value: number,
+  decimals: number = 1,
+  isDecimal: boolean = true,
+): string {
   const percentage = isDecimal ? value * 100 : value;
   return `${percentage.toFixed(decimals)}%`;
 }

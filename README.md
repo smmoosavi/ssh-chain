@@ -72,6 +72,7 @@ bun run index.ts other-server -c ./custom-config.json
 See [config.example.json](config.example.json) for all available options.
 
 The only required configuration is `sshServer`, which can be provided:
+
 - As a command-line argument
 - In the config file
 
@@ -83,16 +84,12 @@ You can configure domains that should bypass the proxy and connect directly. Add
 
 ```json
 {
-  "directDomains": [
-    "foo.example.com",
-    "*.my-company.com",
-    "foo-bar",
-    "*.us"
-  ]
+  "directDomains": ["foo.example.com", "*.my-company.com", "foo-bar", "*.us"]
 }
 ```
 
 **Wildcard Support:**
+
 - **Exact match**: `foo.example.com` - only matches this exact domain
 - **Subdomain wildcard**: `*.my-company.com` - matches any subdomain like `api.my-company.com`, `dev.api.my-company.com`, and the apex domain `my-company.com`
 - **No TLD**: `foo-bar` - matches simple hostnames without a TLD

@@ -4,11 +4,16 @@
  * Emits events for extensibility via plugins
  */
 
-import { networkInterfaces } from "os";
-import ProxyChain from "proxy-chain";
-import type { Config } from "./config.ts";
-import type { SSHManager } from "./ssh-manager.ts";
-import { TypedEventEmitter, type ProxyServerEvents, type ProxyRequestInfo, type ConnectionStats } from "./types.ts";
+import { networkInterfaces } from 'os';
+import ProxyChain from 'proxy-chain';
+import type { Config } from './config.ts';
+import type { SSHManager } from './ssh-manager.ts';
+import {
+  TypedEventEmitter,
+  type ProxyServerEvents,
+  type ProxyRequestInfo,
+  type ConnectionStats,
+} from './types.ts';
 
 /**
  * Check if a domain matches any pattern in the direct domains list
@@ -18,7 +23,10 @@ import { TypedEventEmitter, type ProxyServerEvents, type ProxyRequestInfo, type 
  * - *.us matches all domains ending in .us TLD
  * - foo.example.com matches exact domain
  */
-export function shouldUseDirect(hostname: string, directDomains: string[]): boolean {
+export function shouldUseDirect(
+  hostname: string,
+  directDomains: string[],
+): boolean {
   if (directDomains.length === 0) {
     return false;
   }
@@ -30,7 +38,7 @@ export function shouldUseDirect(hostname: string, directDomains: string[]): bool
     }
 
     // Wildcard pattern
-    if (pattern.startsWith("*.")) {
+    if (pattern.startsWith('*.')) {
       const suffix = pattern.slice(1); // Remove * but keep the dot
       // Match if hostname ends with the suffix (e.g., .example.com)
       if (hostname.endsWith(suffix)) {
@@ -40,7 +48,7 @@ export function shouldUseDirect(hostname: string, directDomains: string[]): bool
       if (hostname === suffix.slice(1)) {
         return true;
       }
-    } else if (pattern.startsWith("*")) {
+    } else if (pattern.startsWith('*')) {
       // Handle patterns like *.us (without dot after *)
       const suffix = pattern.slice(1);
       if (hostname.endsWith(suffix)) {
@@ -77,8 +85,8 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
   private extractHostname(url: string): string {
     try {
       // Handle CONNECT requests (hostname:port format)
-      if (url.includes(":") && !url.includes("://")) {
-        return url.split(":")[0] ?? url;
+      if (url.includes(':') && !url.includes('://')) {
+        return url.split(':')[0] ?? url;
       }
 
       // Handle full URLs
@@ -95,14 +103,14 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
   private extractPort(url: string, isHttps: boolean): number {
     try {
       // Handle CONNECT requests (hostname:port format)
-      if (url.includes(":") && !url.includes("://")) {
-        const parts = url.split(":");
-        return parseInt(parts[1] ?? (isHttps ? "443" : "80"), 10);
+      if (url.includes(':') && !url.includes('://')) {
+        const parts = url.split(':');
+        return parseInt(parts[1] ?? (isHttps ? '443' : '80'), 10);
       }
 
       // Handle full URLs
       const urlObj = new URL(url);
-      return urlObj.port ? parseInt(urlObj.port, 10) : (isHttps ? 443 : 80);
+      return urlObj.port ? parseInt(urlObj.port, 10) : isHttps ? 443 : 80;
     } catch {
       return isHttps ? 443 : 80;
     }
@@ -115,17 +123,23 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
     const initialSocksUrl = this.sshManager.getSocksUrl();
 
     if (!initialSocksUrl) {
-      throw new Error("SSH SOCKS5 proxy is not running");
+      throw new Error('SSH SOCKS5 proxy is not running');
     }
 
     this.server = new ProxyChain.Server({
       port: this.config.httpProxyPort,
       host: this.config.httpProxyHost,
-      verbose: this.config.logLevel === "debug",
+      verbose: this.config.logLevel === 'debug',
 
-      prepareRequestFunction: ({ request, hostname, port, isHttp, connectionId }) => {
-        const targetHost = hostname || this.extractHostname(request.url || "");
-        const targetPort = port || this.extractPort(request.url || "", !isHttp);
+      prepareRequestFunction: ({
+        request,
+        hostname,
+        port,
+        isHttp,
+        connectionId,
+      }) => {
+        const targetHost = hostname || this.extractHostname(request.url || '');
+        const targetPort = port || this.extractPort(request.url || '', !isHttp);
 
         // Track connection hostname for stats
         this.connectionHostnames.set(connectionId, targetHost);
@@ -133,7 +147,7 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
         // Check if domain should bypass proxy
         const isDirect = shouldUseDirect(targetHost, this.config.directDomains);
 
-        const method = request.method || "CONNECT";
+        const method = request.method || 'CONNECT';
 
         // Emit request event for plugins
         const requestInfo: ProxyRequestInfo = {
@@ -146,7 +160,7 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
           isDirect,
           timestamp: new Date(),
         };
-        this.emit("request", requestInfo);
+        this.emit('request', requestInfo);
 
         // Notify activity to SSH manager (only for proxied requests)
         if (!isDirect) {
@@ -164,8 +178,12 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
         // Get current SOCKS URL (may change if SSH restarts)
         const currentSocksUrl = this.sshManager.getSocksUrl();
         if (!currentSocksUrl) {
-          this.emit("error", new Error("SSH SOCKS5 proxy not available"), "prepareRequest");
-          return { failMsg: "SSH SOCKS5 proxy not available" };
+          this.emit(
+            'error',
+            new Error('SSH SOCKS5 proxy not available'),
+            'prepareRequest',
+          );
+          return { failMsg: 'SSH SOCKS5 proxy not available' };
         }
 
         // Return upstream proxy configuration
@@ -177,26 +195,36 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
     });
 
     // Listen for connection closed events to emit byte statistics
-    this.server.on("connectionClosed", ({ connectionId, stats }: { connectionId: number; stats: ConnectionStats }) => {
-      const hostname = this.connectionHostnames.get(connectionId) || "unknown";
-      this.connectionHostnames.delete(connectionId);
-      this.emit("connectionClosed", connectionId, stats, hostname);
-    });
+    this.server.on(
+      'connectionClosed',
+      ({
+        connectionId,
+        stats,
+      }: {
+        connectionId: number;
+        stats: ConnectionStats;
+      }) => {
+        const hostname =
+          this.connectionHostnames.get(connectionId) || 'unknown';
+        this.connectionHostnames.delete(connectionId);
+        this.emit('connectionClosed', connectionId, stats, hostname);
+      },
+    );
 
-    this.server.on("requestFailed", ({ error }) => {
+    this.server.on('requestFailed', ({ error }) => {
       // Filter out "Only HTTP protocol is supported" errors - these occur when
       // misbehaving clients (like Microsoft telemetry) send direct HTTPS requests
       // instead of using the CONNECT method. This is expected and not actionable.
-      if (error.message.includes("Only HTTP protocol is supported")) {
+      if (error.message.includes('Only HTTP protocol is supported')) {
         return;
       }
-      this.emit("error", error, "requestFailed");
+      this.emit('error', error, 'requestFailed');
     });
 
     await this.server.listen();
 
     // Emit started event
-    this.emit("started", this.config.httpProxyPort, this.getProxyUrl());
+    this.emit('started', this.config.httpProxyPort, this.getProxyUrl());
   }
 
   /**
@@ -209,7 +237,7 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
     }
     this.connectionHostnames.clear();
 
-    this.emit("stopped");
+    this.emit('stopped');
   }
 
   /**
@@ -228,7 +256,7 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
     const host = this.config.httpProxyHost;
 
     // If not listening on all interfaces, return single URL
-    if (host !== "0.0.0.0") {
+    if (host !== '0.0.0.0') {
       return [`http://${host}:${port}`];
     }
 
@@ -239,7 +267,7 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
     for (const name of Object.keys(nets)) {
       for (const net of nets[name] ?? []) {
         // Skip non-IPv4 addresses
-        if (net.family === "IPv4") {
+        if (net.family === 'IPv4') {
           urls.push(`http://${net.address}:${port}`);
         }
       }
