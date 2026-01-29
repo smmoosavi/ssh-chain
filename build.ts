@@ -76,18 +76,30 @@ async function buildBinary(
 ): Promise<boolean> {
   console.log('📦 Building binary...');
 
-  // Bun.build with compile option is not available in the API
-  // We need to use the CLI for compiled binaries
-  try {
-    const hashDefine = `BUILD_GIT_HASH=${JSON.stringify(gitHash)}`;
-    const dirtyDefine = `BUILD_GIT_DIRTY=${JSON.stringify(isDirty)}`;
-    await $`bun build --compile --minify --sourcemap --define ${hashDefine} --define ${dirtyDefine} ${ENTRY_POINT} --outfile ${OUT_DIR}/ssh-chain`;
-    console.log('✅ dist/ssh-chain');
-    return true;
-  } catch (error) {
-    console.error('❌ Binary build failed:', error);
+  const result = await Bun.build({
+    entrypoints: [ENTRY_POINT],
+    target: 'bun',
+    minify: true,
+    sourcemap: 'external',
+    define: {
+      BUILD_GIT_HASH: JSON.stringify(gitHash),
+      BUILD_GIT_DIRTY: JSON.stringify(isDirty),
+    },
+    compile: {
+      outfile: `${OUT_DIR}/ssh-chain`,
+    },
+  });
+
+  if (!result.success) {
+    console.error('❌ Binary build failed:');
+    for (const log of result.logs) {
+      console.error(log);
+    }
     return false;
   }
+
+  console.log('✅ dist/ssh-chain');
+  return true;
 }
 
 async function main(): Promise<void> {
