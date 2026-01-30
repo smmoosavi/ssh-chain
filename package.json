@@ -1,6 +1,6 @@
 {
   "name": "ssh-chain",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "HTTP proxy through SSH SOCKS5 tunnel",
   "module": "index.ts",
   "type": "module",
