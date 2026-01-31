@@ -65,6 +65,39 @@ const PartialConfigSchema = z
 export type PartialConfig = z.infer<typeof PartialConfigSchema>;
 
 /**
+ * All config keys that should be merged (excluding sshServer which needs special handling)
+ * This is the single source of truth for config properties
+ */
+const SIMPLE_CONFIG_KEYS = [
+  'portRange',
+  'httpProxyHost',
+  'httpProxyPort',
+  'inactivityTimeout',
+  'healthCheckInterval',
+  'retryAttempts',
+  'logLevel',
+  'directDomains',
+  'showFooter',
+  'maxSpeed',
+] as const satisfies ReadonlyArray<keyof Omit<PartialConfig, 'sshServer'>>;
+
+/**
+ * Default configuration values - single source of truth for defaults
+ */
+const DEFAULT_CONFIG: Required<Omit<PartialConfig, 'sshServer'>> = {
+  portRange: { min: 10000, max: 10100 },
+  httpProxyHost: '127.0.0.1',
+  httpProxyPort: 4080,
+  inactivityTimeout: 60,
+  healthCheckInterval: 30,
+  retryAttempts: 3,
+  logLevel: 'info',
+  directDomains: [],
+  showFooter: true,
+  maxSpeed: 6 * 1024 * 1024,
+};
+
+/**
  * Interface for config loaders
  */
 export interface ConfigLoader {
@@ -84,18 +117,7 @@ export class DefaultConfigLoader implements ConfigLoader {
   readonly priority = 0;
 
   async load(): Promise<PartialConfig> {
-    return {
-      portRange: { min: 10000, max: 10100 },
-      httpProxyHost: '127.0.0.1',
-      httpProxyPort: 4080,
-      inactivityTimeout: 60,
-      healthCheckInterval: 30,
-      retryAttempts: 3,
-      logLevel: 'info',
-      directDomains: [],
-      showFooter: true,
-      maxSpeed: 6 * 1024 * 1024,
-    };
+    return { ...DEFAULT_CONFIG };
   }
 }
 
@@ -280,6 +302,7 @@ export class ConfigManager {
 
   /**
    * Deep merge two partial configs (second overrides first)
+   * Uses SIMPLE_CONFIG_KEYS to automatically handle all properties
    */
   private mergeConfigs(
     base: PartialConfig,
@@ -287,38 +310,17 @@ export class ConfigManager {
   ): PartialConfig {
     const result: PartialConfig = { ...base };
 
+    // Handle sshServer specially (it has nested structure)
     if (override.sshServer !== undefined) {
       result.sshServer = override.sshServer;
     }
-    if (override.portRange !== undefined) {
-      result.portRange = override.portRange;
-    }
-    if (override.httpProxyHost !== undefined) {
-      result.httpProxyHost = override.httpProxyHost;
-    }
-    if (override.httpProxyPort !== undefined) {
-      result.httpProxyPort = override.httpProxyPort;
-    }
-    if (override.inactivityTimeout !== undefined) {
-      result.inactivityTimeout = override.inactivityTimeout;
-    }
-    if (override.healthCheckInterval !== undefined) {
-      result.healthCheckInterval = override.healthCheckInterval;
-    }
-    if (override.retryAttempts !== undefined) {
-      result.retryAttempts = override.retryAttempts;
-    }
-    if (override.logLevel !== undefined) {
-      result.logLevel = override.logLevel;
-    }
-    if (override.directDomains !== undefined) {
-      result.directDomains = override.directDomains;
-    }
-    if (override.showFooter !== undefined) {
-      result.showFooter = override.showFooter;
-    }
-    if (override.maxSpeed !== undefined) {
-      result.maxSpeed = override.maxSpeed;
+
+    // Handle all simple config keys generically
+    for (const key of SIMPLE_CONFIG_KEYS) {
+      if (override[key] !== undefined) {
+        // TypeScript needs help here due to union types
+        (result as Record<string, unknown>)[key] = override[key];
+      }
     }
 
     return result;
@@ -326,6 +328,7 @@ export class ConfigManager {
 
   /**
    * Validate and create final config
+   * Uses SIMPLE_CONFIG_KEYS to automatically include all properties
    */
   private validateConfig(partial: PartialConfig): Config {
     if (!partial.sshServer?.host) {
@@ -343,19 +346,17 @@ export class ConfigManager {
       ...builtinDirectDomains,
     ];
 
-    return ConfigSchema.parse({
+    // Build config object dynamically from SIMPLE_CONFIG_KEYS
+    const configObj: Record<string, unknown> = {
       sshServer: partial.sshServer,
-      portRange: partial.portRange,
-      httpProxyHost: partial.httpProxyHost,
-      httpProxyPort: partial.httpProxyPort,
-      inactivityTimeout: partial.inactivityTimeout,
-      healthCheckInterval: partial.healthCheckInterval,
-      retryAttempts: partial.retryAttempts,
-      logLevel: partial.logLevel,
-      directDomains: mergedDirectDomains,
-      showFooter: partial.showFooter,
-      maxSpeed: partial.maxSpeed,
-    });
+    };
+
+    for (const key of SIMPLE_CONFIG_KEYS) {
+      configObj[key] =
+        key === 'directDomains' ? mergedDirectDomains : partial[key];
+    }
+
+    return ConfigSchema.parse(configObj);
   }
 }
 
