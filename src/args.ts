@@ -4,6 +4,7 @@
 
 import { parseArgs } from 'util';
 import { logger } from './logger.ts';
+import { parseSize } from './size-utils.ts';
 
 export interface ParsedArgs {
   /** SSH server (positional argument or from config) */
@@ -16,6 +17,10 @@ export interface ParsedArgs {
   httpProxyPort?: number;
   /** Log level */
   logLevel?: 'debug' | 'info' | 'warn' | 'error';
+  /** Show footer */
+  showFooter?: boolean;
+  /** Max speed for graph scaling (in bytes/sec) */
+  maxSpeed?: number;
   /** Show help */
   help: boolean;
   /** Show version */
@@ -40,6 +45,9 @@ Options:
   -H, --host <host>       HTTP proxy host/IP (default: 127.0.0.1)
   -p, --port <port>       HTTP proxy port (default: 4080)
   -l, --log-level <level> Log level: debug, info, warn, error (default: info)
+  --no-footer             Disable footer display
+  --max-speed <size>      Max speed for graph scaling (default: 6M)
+                          Supports: 100K, 10M, 1G, or bytes (e.g., 1048576)
   -h, --help              Show this help message
   -v, --version           Show version
 
@@ -104,6 +112,12 @@ export function parseArgv(argv: string[] = process.argv): ParsedArgs {
         type: 'string',
         short: 'l',
       },
+      'no-footer': {
+        type: 'boolean',
+      },
+      'max-speed': {
+        type: 'string',
+      },
       help: {
         type: 'boolean',
         short: 'h',
@@ -141,6 +155,21 @@ export function parseArgv(argv: string[] = process.argv): ParsedArgs {
     logLevel = level as ParsedArgs['logLevel'];
   }
 
+  // Parse maxSpeed if provided
+  let maxSpeed: number | undefined;
+  if (values['max-speed']) {
+    try {
+      maxSpeed = parseSize(values['max-speed']);
+      if (maxSpeed < 1) {
+        throw new Error('max-speed must be at least 1 byte');
+      }
+    } catch (error) {
+      throw new Error(
+        `Invalid max-speed: ${values['max-speed']}. ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
   // Get SSH server from positional argument (first non-option argument)
   const sshServer = positionals[0];
 
@@ -150,6 +179,8 @@ export function parseArgv(argv: string[] = process.argv): ParsedArgs {
     httpProxyHost: values.host,
     httpProxyPort,
     logLevel,
+    showFooter: values['no-footer'] === true ? false : undefined,
+    maxSpeed,
     help: values.help ?? false,
     version: values.version ?? false,
   };

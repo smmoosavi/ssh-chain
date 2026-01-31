@@ -38,6 +38,13 @@
   "logLevel": "info",
   "_logLevel_comment": "Log level: debug, info, warn, error (default: info)",
 
+  "showFooter": true,
+  "_showFooter_comment": "Enable footer display with live stats (default: true)",
+
+  "maxSpeed": 6291456,
+  "_maxSpeed_comment": "Max speed for graph scaling in bytes/sec (default: 6291456 = 6MB)",
+  "_maxSpeed_note": "Also supports size strings: '100K', '10M', '1G', etc.",
+
   "directDomains": [
     "foo.example.com",
     "*.my-company.com",

@@ -54,6 +54,8 @@ const PartialConfigSchema = z
     retryAttempts: z.number().int().min(0).optional(),
     logLevel: LogLevelSchema.optional(),
     directDomains: z.array(z.string()).optional(),
+    showFooter: z.boolean().optional(),
+    maxSpeed: z.number().int().min(1).optional(),
   })
   .partial();
 
@@ -91,6 +93,8 @@ export class DefaultConfigLoader implements ConfigLoader {
       retryAttempts: 3,
       logLevel: 'info',
       directDomains: [],
+      showFooter: true,
+      maxSpeed: 6 * 1024 * 1024,
     };
   }
 }
@@ -165,6 +169,14 @@ export class ArgvConfigLoader implements ConfigLoader {
 
     if (this.args.logLevel !== undefined) {
       config.logLevel = this.args.logLevel;
+    }
+
+    if (this.args.showFooter !== undefined) {
+      config.showFooter = this.args.showFooter;
+    }
+
+    if (this.args.maxSpeed !== undefined) {
+      config.maxSpeed = this.args.maxSpeed;
     }
 
     return config;
@@ -302,6 +314,12 @@ export class ConfigManager {
     if (override.directDomains !== undefined) {
       result.directDomains = override.directDomains;
     }
+    if (override.showFooter !== undefined) {
+      result.showFooter = override.showFooter;
+    }
+    if (override.maxSpeed !== undefined) {
+      result.maxSpeed = override.maxSpeed;
+    }
 
     return result;
   }
@@ -335,6 +353,8 @@ export class ConfigManager {
       retryAttempts: partial.retryAttempts,
       logLevel: partial.logLevel,
       directDomains: mergedDirectDomains,
+      showFooter: partial.showFooter,
+      maxSpeed: partial.maxSpeed,
     });
   }
 }

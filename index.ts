@@ -60,7 +60,10 @@ async function main() {
 
   // Get footer plugin and configure it
   const footerPlugin = plugins.find((p) => p.name === 'footer') as FooterPlugin;
-  footerPlugin?.setConnectionInfo(config.sshServer.host, config.httpProxyPort);
+  if (config.showFooter && footerPlugin) {
+    footerPlugin.setConnectionInfo(config.sshServer.host, config.httpProxyPort);
+    footerPlugin.setGraphMaxValue(config.maxSpeed);
+  }
 
   // Create app with composition
   const app = createApp(config, plugins);
@@ -115,7 +118,9 @@ async function main() {
     bannerPlugin?.printRunningBanner(app.getProxyUrls());
 
     // Start footer updates
-    footerPlugin?.start();
+    if (config.showFooter) {
+      footerPlugin?.start();
+    }
   } catch (error) {
     logger.error(`[Main] Startup failed: ${error}`);
     await app.stop();

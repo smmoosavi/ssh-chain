@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import type { ParsedArgs } from './args.ts';
 import { fileExists, readFileText } from './fs-utils.ts';
+import { parseSize } from './size-utils.ts';
 
 // SSH Server configuration schema (full object format)
 const SSHServerObjectSchema = z.object({
@@ -78,6 +79,15 @@ const ConfigSchema = z.object({
   logLevel: LogLevelSchema.optional().default('info'),
   /** List of domains that should bypass the proxy (support wildcards) */
   directDomains: z.array(z.string()).optional().default([]),
+  /** Show footer display */
+  showFooter: z.boolean().optional().default(true),
+  /** Max speed for graph scaling in bytes/sec */
+  maxSpeed: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .default(6 * 1024 * 1024),
 });
 
 // Partial config schema for file loading (sshServer is optional, can come from args)
@@ -100,6 +110,10 @@ const PartialConfigSchema = z.object({
   logLevel: LogLevelSchema.optional().default('info'),
   /** List of domains that should bypass the proxy (support wildcards) */
   directDomains: z.array(z.string()).optional().default([]),
+  /** Show footer display */
+  showFooter: z.boolean().optional(),
+  /** Max speed for graph scaling in bytes/sec */
+  maxSpeed: z.number().int().min(1).optional(),
 });
 
 // Export inferred types from schemas
@@ -182,6 +196,11 @@ export async function resolveConfig(args: ParsedArgs): Promise<Config> {
     retryAttempts: fileConfig?.retryAttempts ?? 3,
     logLevel: args.logLevel ?? fileConfig?.logLevel ?? 'info',
     directDomains: fileConfig?.directDomains ?? [],
+    showFooter:
+      args.showFooter !== undefined
+        ? args.showFooter
+        : (fileConfig?.showFooter ?? true),
+    maxSpeed: parseSize(args.maxSpeed ?? fileConfig?.maxSpeed ?? '6M'),
   };
 
   return ConfigSchema.parse(mergedConfig);
