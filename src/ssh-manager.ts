@@ -148,6 +148,56 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
       return;
     }
 
+    const maxAttempts = this.config.retryAttempts + 1; // +1 for initial attempt
+    let attempt = 1;
+    let lastError: string | undefined;
+
+    while (attempt <= maxAttempts) {
+      try {
+        logger.info(
+          `[SSH] Starting SOCKS5 proxy (attempt ${attempt}/${maxAttempts})...`,
+        );
+
+        const success = await this.attemptStart();
+
+        if (success) {
+          if (attempt > 1) {
+            logger.info(`[SSH] Successfully started after ${attempt} attempts`);
+          }
+          return;
+        }
+
+        // If we get here, attemptStart returned false (shouldn't happen with current implementation)
+        lastError = 'Start attempt returned false';
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : String(error);
+        logger.warn(
+          `[SSH] Attempt ${attempt}/${maxAttempts} failed: ${lastError}`,
+        );
+      }
+
+      // Clean up failed attempt
+      await this.cleanup();
+
+      attempt++;
+
+      if (attempt <= maxAttempts) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 2), 10000); // Exponential backoff, max 10s
+        logger.info(`[SSH] Waiting ${delay}ms before retry...`);
+        await sleep(delay);
+      }
+    }
+
+    // All attempts failed
+    throw new Error(
+      `Failed to start SSH proxy after ${maxAttempts} attempts. Last error: ${lastError}`,
+    );
+  }
+
+  /**
+   * Attempt to start the SSH SOCKS5 proxy once
+   */
+  private async attemptStart(): Promise<boolean> {
     const port = this.pickPort();
     this.usedPorts.add(port);
     this.state.currentPort = port;
@@ -175,10 +225,16 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
     this.monitorOutput();
 
     // Wait for SSH to be ready
-    await this.waitForReady(port);
+    const result = await this.waitForReady(port);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Unknown error during SSH startup');
+    }
 
     // Start health checks
     this.startHealthChecks();
+
+    return true;
   }
 
   /**
@@ -222,14 +278,17 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
   private async waitForReady(
     port: number,
     timeout: number = 30000,
-  ): Promise<void> {
+  ): Promise<{ success: boolean; error?: string }> {
     const startTime = Date.now();
     const checkInterval = 500;
 
     while (Date.now() - startTime < timeout) {
       // Check if process died
       if (!this.state.isRunning || !this.process) {
-        throw new Error('SSH process died before becoming ready');
+        return {
+          success: false,
+          error: 'SSH process died before becoming ready',
+        };
       }
 
       // Try to connect to the SOCKS5 proxy
@@ -248,14 +307,58 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
       if (connected) {
         // Connection successful, proxy is ready
         this.emit('ready', port);
-        return;
+        return { success: true };
       }
 
       // Not ready yet, wait and retry
       await sleep(checkInterval);
     }
 
-    throw new Error(`SSH SOCKS5 proxy failed to start within ${timeout}ms`);
+    return {
+      success: false,
+      error: `SSH SOCKS5 proxy failed to start within ${timeout}ms`,
+    };
+  }
+
+  /**
+   * Clean up failed SSH attempt
+   */
+  private async cleanup(): Promise<void> {
+    // Clear running state
+    this.state.isRunning = false;
+
+    // Kill process if still running
+    if (this.process && !this.process.killed) {
+      this.process.kill('SIGTERM');
+
+      // Wait a bit for graceful shutdown
+      setTimeout(() => {
+        if (this.process && !this.process.killed) {
+          this.process.kill('SIGKILL');
+        }
+      }, 2000);
+    }
+
+    // Clear process reference
+    this.process = null;
+    this.processExited = null;
+
+    // Free up the port
+    if (this.state.currentPort) {
+      this.usedPorts.delete(this.state.currentPort);
+      this.state.currentPort = null;
+    }
+
+    // Stop timers
+    if (this.healthCheckTimer) {
+      clearInterval(this.healthCheckTimer);
+      this.healthCheckTimer = null;
+    }
+
+    if (this.inactivityCheckTimer) {
+      clearInterval(this.inactivityCheckTimer);
+      this.inactivityCheckTimer = null;
+    }
   }
 
   /**
@@ -313,7 +416,7 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
   async stop(): Promise<void> {
     this.stopHealthChecks();
 
-    if (this.process) {
+    if (this.process && !this.process.killed) {
       // Try graceful shutdown first (SIGTERM)
       this.process.kill('SIGTERM');
 
@@ -324,7 +427,7 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
       await Promise.race([exited, timeout]);
 
       // Force kill if still running
-      if (!this.process.killed) {
+      if (this.process && !this.process.killed) {
         this.process.kill('SIGKILL');
         // Give it a brief moment to die
         await Promise.race([
@@ -332,10 +435,10 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
           new Promise((resolve) => setTimeout(resolve, 500)),
         ]);
       }
-
-      this.process = null;
-      this.processExited = null;
     }
+
+    this.process = null;
+    this.processExited = null;
 
     if (this.state.currentPort) {
       this.usedPorts.delete(this.state.currentPort);
