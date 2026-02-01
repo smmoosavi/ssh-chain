@@ -34,7 +34,8 @@
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "build": "bun run build.ts",
-    "prepublishOnly": "pnpm typecheck && pnpm build"
+    "prepublishOnly": "pnpm typecheck && pnpm build",
+    "release": "node scripts/release.js"
   },
   "devDependencies": {
     "@types/bun": "latest",
