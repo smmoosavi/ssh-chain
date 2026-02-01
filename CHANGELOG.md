@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ReleaseDate
 
+## [1.0.2] - 2026-02-01
+
 ### Added
 
 - New command-line option `--no-footer` to disable footer display in output
@@ -29,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- next-url -->
 
-[Unreleased]: https://github.com/smmoosavi/ssh-chain/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/smmoosavi/ssh-chain/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/smmoosavi/ssh-chain/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/smmoosavi/ssh-chain/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/smmoosavi/ssh-chain/releases/tag/v1.0.0
