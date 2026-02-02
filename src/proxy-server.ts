@@ -183,6 +183,14 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
             new Error('SSH SOCKS5 proxy not available'),
             'prepareRequest',
           );
+          // Trigger SSH restart in background to recover from the error
+          this.sshManager.restart().catch((error) => {
+            this.emit(
+              'error',
+              new Error(`Failed to restart SSH: ${error.message}`),
+              'sshRestart',
+            );
+          });
           return { failMsg: 'SSH SOCKS5 proxy not available' };
         }
 

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+- Automatic SSH proxy restart when SOCKS5 proxy becomes unavailable to improve reliability
+
 ## [1.0.2] - 2026-02-01
 
 ### Added

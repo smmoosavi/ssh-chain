@@ -41,6 +41,7 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
   private usedPorts: Set<number> = new Set();
   private healthCheckTimer: ReturnType<typeof setInterval> | null = null;
   private inactivityCheckTimer: ReturnType<typeof setInterval> | null = null;
+  private isRestarting: boolean = false;
 
   constructor(config: Config) {
     super();
@@ -453,11 +454,22 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
    * Restart the SSH process
    */
   async restart(): Promise<void> {
-    this.state.restartCount++;
-    this.emit('restart', this.state.restartCount);
+    // Skip if already restarting
+    if (this.isRestarting) {
+      logger.info('[SSH] Restart already in progress, skipping');
+      return;
+    }
 
-    await this.stop();
-    await sleep(1000); // Brief delay before restart
-    await this.start();
+    this.isRestarting = true;
+    try {
+      this.state.restartCount++;
+      this.emit('restart', this.state.restartCount);
+
+      await this.stop();
+      await sleep(1000); // Brief delay before restart
+      await this.start();
+    } finally {
+      this.isRestarting = false;
+    }
   }
 }
