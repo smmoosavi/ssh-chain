@@ -4,21 +4,22 @@ This document outlines the steps required to release a new version of ssh-chain.
 
 ## Release Steps
 
-### 1. Version Bump
+### 1. Create Release
 
-Update the version number using pnpm:
+Create a new release using the automated script:
 
 ```bash
-pnpm version patch
+pnpm release <version>
 ```
 
 This will:
 
-- Bump the version in `package.json`
-- Create a git commit with the version change
+- Update the version in `package.json`
+- Update `CHANGELOG.md` with the new version and release date
+- Create a git commit with the changes
 - Create a git tag for the new version
 
-Use `minor` or `major` instead of `patch` as appropriate for the type of release.
+Replace `<version>` with the appropriate version number (e.g., `1.0.3`).
 
 ### 2. Push to GitHub
 

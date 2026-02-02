@@ -4,9 +4,43 @@ HTTP proxy through SSH SOCKS5 tunnel.
 
 ## Installation
 
+### Option 1: Install via npm
+
 ```bash
-pnpm install
+npm install -g ssh-chain
 ```
+
+### Option 2: Download from Release
+
+Download the single JavaScript file from the [Releases](https://github.com/smmoosavi/ssh-chain/releases) page and run it directly:
+
+```bash
+./ssh-chain
+```
+
+### Option 3: Clone and Build
+
+Clone this repository and build the project (requires Bun for building):
+
+```bash
+git clone https://github.com/your-repo/ssh-chain.git
+cd ssh-chain
+pnpm install
+bun run build
+```
+
+This creates:
+
+- `dist/ssh-chain` - Executable that runs with Node.js (recommended)
+  - Requires Node.js in runtime
+  - Smaller size (~400KB)
+  - No known bugs
+- `dist/ssh-chain.bun` - Bun-specific binary
+  - Standalone binary (no runtime required)
+  - Larger size (~100MB)
+  - Known bug: [incorrect byte usage display](https://github.com/oven-sh/bun/issues/26553)
+
+**Note:** We recommend using Node.js to run the built binary due to [a Bun issue with memory statistics](https://github.com/oven-sh/bun/issues/26553).
 
 ## Building
 
@@ -60,8 +94,13 @@ bun run index.ts my-server
 ### Command-line options
 
 ```
+SSH Chain Proxy - HTTP proxy through SSH SOCKS5 tunnel
+
 Usage:
   ssh-chain [options] [ssh-server]
+  ssh-chain <ssh-server>
+  ssh-chain -c <config-file>
+  ssh-chain <ssh-server> -c <config-file>
 
 Arguments:
   ssh-server              SSH host (hostname, IP, or ~/.ssh/config Host entry)
@@ -69,10 +108,21 @@ Arguments:
 
 Options:
   -c, --config <path>     Path to config file (default: ./config.json)
+  -H, --host <host>       HTTP proxy host/IP (default: 127.0.0.1)
   -p, --port <port>       HTTP proxy port (default: 4080)
   -l, --log-level <level> Log level: debug, info, warn, error (default: info)
-  -h, --help              Show help message
+  --no-footer             Disable footer display
+  --max-speed <size>      Max speed for graph scaling (default: 6M)
+                          Supports: 100K, 10M, 1G, or bytes (e.g., 1048576)
+  -h, --help              Show this help message
   -v, --version           Show version
+
+Examples:
+  ssh-chain my-server                    # Connect using ~/.ssh/config host
+  ssh-chain user@192.168.1.100           # Connect with user@host
+  ssh-chain -c ./custom-config.json      # Use custom config file
+  ssh-chain my-server -p 8080            # Use custom HTTP proxy port
+  ssh-chain my-server --log-level debug  # Enable debug logging
 ```
 
 ### Examples
