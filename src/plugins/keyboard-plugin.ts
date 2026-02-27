@@ -77,8 +77,8 @@ export class KeyboardPlugin implements ProxyPlugin {
   private handleKeyPress = async (key: string): Promise<void> => {
     // Handle Ctrl+C (ASCII code 3)
     if (key === '\u0003') {
-      // Let Node.js handle Ctrl+C normally (will trigger SIGINT)
-      process.emit('SIGINT', 'SIGINT');
+      // Send real SIGINT signal to terminate the process
+      process.kill(process.pid, 'SIGINT');
       return;
     }
 

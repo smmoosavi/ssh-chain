@@ -366,7 +366,10 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
             resolve(true);
           },
         );
-        socket.on('error', () => resolve(false));
+        socket.on('error', () => {
+          socket.destroy();
+          resolve(false);
+        });
         socket.setTimeout(1000, () => {
           socket.destroy();
           resolve(false);
@@ -406,6 +409,9 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
    * Start health check timers
    */
   private startHealthChecks(): void {
+    // Clear any existing timers to prevent leaks
+    this.stopHealthChecks();
+
     // Check for inactivity
     if (this.config.inactivityTimeout > 0) {
       this.inactivityCheckTimer = setInterval(() => {
