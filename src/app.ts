@@ -46,6 +46,14 @@ export class App {
     this.pluginManager.setSSHManager(this.sshManager);
     this.pluginManager.setProxyServer(this.proxyServer);
 
+    // When SSH port is stopping, close only connections using that port
+    // This is necessary because long-running connections (WebSocket, video streams, etc.)
+    // will break when that SSH tunnel dies anyway, so we close them explicitly
+    // so clients know immediately and can reconnect through the new tunnel
+    this.sshManager.on('sshPortStopping', (port: number) => {
+      this.proxyServer.closeConnectionsBySSHPort(port);
+    });
+
     // Register plugins
     if (options.plugins) {
       for (const plugin of options.plugins) {

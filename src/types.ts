@@ -78,6 +78,7 @@ export type ProxyServerEvents = {
     stats: ConnectionStats,
     hostname: string,
   ];
+  closingConnections: [count: number];
   error: [error: Error, context?: string];
   started: [port: number, proxyUrl: string];
   stopped: [];
@@ -93,6 +94,7 @@ export type SSHManagerEvents = {
   data: [bytes: number];
   stdout: [data: string];
   stderr: [data: string];
+  sshPortStopping: [port: number];
   restart: [count: number];
   activity: [];
 };

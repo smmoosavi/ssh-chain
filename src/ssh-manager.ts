@@ -142,6 +142,16 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
   }
 
   /**
+   * Get the current SSH port
+   */
+  getCurrentPort(): number | null {
+    if (!this.currentHandle || !this.currentHandle.isRunning) {
+      return null;
+    }
+    return this.currentHandle.port;
+  }
+
+  /**
    * Pick a random available port from the configured range
    */
   private pickPort(): number {
@@ -501,6 +511,12 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
         );
         await sleep(gracePeriodMs);
 
+        // Emit event so listeners can close connections using the old port
+        logger.info(
+          `[SSH] Notifying listeners that SSH port ${oldHandle.port} is stopping...`,
+        );
+        this.emit('sshPortStopping', oldHandle.port);
+
         // Stop old handle
         logger.info(`[SSH] Stopping old connection on port ${oldHandle.port}`);
         await oldHandle.stop();
@@ -569,11 +585,16 @@ export class SSHManager extends TypedEventEmitter<SSHManagerEvents> {
       this.isRestarting = true;
       try {
         this.restartCount++;
+
         this.emit('restart', this.restartCount);
+        let oldPort = this.currentHandle?.port;
 
         await this.stop();
         await sleep(1000); // Brief delay before restart
         await this.start();
+        if (oldPort) {
+          this.emit('sshPortStopping', oldPort);
+        }
       } finally {
         this.isRestarting = false;
       }

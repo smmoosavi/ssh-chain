@@ -23,6 +23,8 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
   private server: ProxyChain.Server | null = null;
   /** Map connectionId to hostname for tracking */
   private connectionHostnames: Map<number, string> = new Map();
+  /** Map connectionId to SSH port used for that connection */
+  private connectionSshPorts: Map<number, number> = new Map();
 
   constructor(config: Config, sshManager: SSHManager) {
     super();
@@ -91,7 +93,9 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
 
         // Get current SOCKS URL (may change if SSH restarts)
         const currentSocksUrl = this.sshManager.getSocksUrl();
-        if (!currentSocksUrl) {
+        const currentSshPort = this.sshManager.getCurrentPort();
+
+        if (!currentSocksUrl || !currentSshPort) {
           this.emit(
             'error',
             new Error('SSH SOCKS5 proxy not available'),
@@ -107,6 +111,9 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
           });
           return { failMsg: 'SSH SOCKS5 proxy not available' };
         }
+
+        // Track which SSH port this connection is using
+        this.connectionSshPorts.set(connectionId, currentSshPort);
 
         // Return upstream proxy configuration
         return {
@@ -129,6 +136,7 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
         const hostname =
           this.connectionHostnames.get(connectionId) || 'unknown';
         this.connectionHostnames.delete(connectionId);
+        this.connectionSshPorts.delete(connectionId);
         this.emit('connectionClosed', connectionId, stats, hostname);
       },
     );
@@ -158,6 +166,7 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
       this.server = null;
     }
     this.connectionHostnames.clear();
+    this.connectionSshPorts.clear();
 
     this.emit('stopped');
   }
@@ -229,5 +238,51 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
    */
   getConnectionHostname(connectionId: number): string | undefined {
     return this.connectionHostnames.get(connectionId);
+  }
+
+  /**
+   * Close a specific connection
+   */
+  closeConnection(connectionId: number): void {
+    if (this.server) {
+      this.server.closeConnection(connectionId);
+    }
+  }
+
+  /**
+   * Close all active connections
+   * This is useful when SSH tunnel restarts - connections will break anyway,
+   * so we close them explicitly so clients know immediately and can reconnect
+   */
+  closeAllConnections(): void {
+    if (this.server) {
+      const connectionIds = this.getActiveConnectionIds();
+      this.emit('closingConnections', connectionIds.length);
+      this.server.closeConnections();
+    }
+  }
+
+  /**
+   * Close connections that are using a specific SSH port
+   * When an SSH tunnel is restarted, only connections using the old port are closed
+   */
+  closeConnectionsBySSHPort(sshPort: number): void {
+    if (!this.server) return;
+
+    const connectionsToClose: number[] = [];
+
+    // Find all connections using this SSH port
+    for (const [connectionId, port] of this.connectionSshPorts.entries()) {
+      if (port === sshPort) {
+        connectionsToClose.push(connectionId);
+      }
+    }
+
+    if (connectionsToClose.length > 0) {
+      this.emit('closingConnections', connectionsToClose.length);
+      for (const connectionId of connectionsToClose) {
+        this.server.closeConnection(connectionId);
+      }
+    }
   }
 }

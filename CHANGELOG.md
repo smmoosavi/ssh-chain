@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed IPv6 address handling for applications like Telegram that use IPv6 endpoints
 - Automatic SSH proxy restart when SOCKS5 proxy becomes unavailable to improve reliability
+- Improved handling of long-running connections during SSH tunnel restart - only connections using the old SSH port are closed when SSH restarts, allowing new connections to continue uninterrupted through the new tunnel
 
 ## [1.0.2] - 2026-02-01
 
