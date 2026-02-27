@@ -91,7 +91,7 @@ export class KeyboardPlugin implements ProxyPlugin {
 
       logger.info('[Keyboard] Restart requested by user...');
       try {
-        await this.sshManager.restart();
+        await this.sshManager.smoothRestart();
       } catch (error) {
         logger.error(
           `[Keyboard] Failed to restart SSH: ${error instanceof Error ? error.message : error}`,
