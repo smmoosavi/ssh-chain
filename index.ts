@@ -10,7 +10,7 @@ import {
   createDefaultPlugins,
   BannerPlugin,
   FooterPlugin,
-} from './src/plugins.ts';
+} from './src/plugins/index.ts';
 import { logger } from './src/logger.ts';
 
 async function main() {

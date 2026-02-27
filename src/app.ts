@@ -6,7 +6,7 @@
 import type { Config } from './config.ts';
 import { SSHManager } from './ssh-manager.ts';
 import { ProxyServer } from './proxy-server.ts';
-import { PluginManager, StatsPlugin, BannerPlugin } from './plugins.ts';
+import { PluginManager, StatsPlugin, BannerPlugin } from './plugins/index.ts';
 import type { ProxyPlugin } from './types.ts';
 import { formatDurationCompact } from './format-utils.ts';
 

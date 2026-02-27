@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { shouldUseDirect } from '../src/proxy-server.ts';
+import { shouldUseDirect } from '../src/domain-matcher.ts';
 
 describe('shouldUseDirect', () => {
   const directDomains = [

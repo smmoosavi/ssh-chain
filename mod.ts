@@ -45,7 +45,7 @@ export {
   BannerPlugin,
   createDefaultPlugins,
   type ProxyStats,
-} from './src/plugins.ts';
+} from './src/plugins/index.ts';
 
 // Types
 export {

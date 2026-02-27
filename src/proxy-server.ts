@@ -14,57 +14,8 @@ import {
   type ProxyRequestInfo,
   type ConnectionStats,
 } from './types.ts';
-
-/**
- * Check if a domain matches any pattern in the direct domains list
- * Supports wildcards:
- * - *.example.com matches any subdomain of example.com
- * - foo-bar matches exact hostname (no TLD required)
- * - *.us matches all domains ending in .us TLD
- * - foo.example.com matches exact domain
- */
-export function shouldUseDirect(
-  hostname: string,
-  directDomains: string[],
-): boolean {
-  if (directDomains.length === 0) {
-    return false;
-  }
-
-  for (const pattern of directDomains) {
-    // Exact match
-    if (pattern === hostname) {
-      return true;
-    }
-
-    // Wildcard pattern
-    if (pattern.startsWith('*.')) {
-      const suffix = pattern.slice(1); // Remove * but keep the dot
-      // Match if hostname ends with the suffix (e.g., .example.com)
-      if (hostname.endsWith(suffix)) {
-        return true;
-      }
-      // Also match the domain itself without subdomain (e.g., example.com for *.example.com)
-      if (hostname === suffix.slice(1)) {
-        return true;
-      }
-    } else if (pattern.startsWith('*')) {
-      // Handle patterns like *.us (without dot after *)
-      const suffix = pattern.slice(1);
-      if (hostname.endsWith(suffix)) {
-        return true;
-      }
-    } else {
-      // For patterns without wildcards, also match if it's a simple hostname (no dots)
-      // This handles cases like "foo-bar" which should only match "foo-bar"
-      if (pattern === hostname) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
+import { shouldUseDirect } from './domain-matcher.ts';
+import { extractHostname, extractPort } from './url-utils.ts';
 
 export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
   private config: Config;
@@ -77,68 +28,6 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
     super();
     this.config = config;
     this.sshManager = sshManager;
-  }
-
-  /**
-   * Extract hostname from URL or request
-   */
-  private extractHostname(url: string): string {
-    try {
-      // Handle CONNECT requests (hostname:port format)
-      if (url.includes(':') && !url.includes('://')) {
-        // Check for IPv6 address (wrapped in brackets)
-        if (url.startsWith('[')) {
-          const endBracket = url.indexOf(']');
-          if (endBracket !== -1) {
-            // Return IPv6 address without brackets
-            return url.slice(1, endBracket);
-          }
-        }
-        return url.split(':')[0] ?? url;
-      }
-
-      // Handle full URLs
-      const urlObj = new URL(url);
-      let hostname = urlObj.hostname;
-
-      // Strip brackets from IPv6 addresses
-      if (hostname.startsWith('[') && hostname.endsWith(']')) {
-        hostname = hostname.slice(1, -1);
-      }
-
-      return hostname;
-    } catch {
-      return url;
-    }
-  }
-
-  /**
-   * Extract port from URL or request
-   */
-  private extractPort(url: string, isHttps: boolean): number {
-    try {
-      // Handle CONNECT requests (hostname:port format)
-      if (url.includes(':') && !url.includes('://')) {
-        // Check for IPv6 address (wrapped in brackets)
-        if (url.startsWith('[')) {
-          const endBracket = url.indexOf(']');
-          if (endBracket !== -1 && url.length > endBracket + 1) {
-            // Port is after ']:'
-            const portStr = url.slice(endBracket + 2);
-            return parseInt(portStr, 10);
-          }
-          return isHttps ? 443 : 80;
-        }
-        const parts = url.split(':');
-        return parseInt(parts[1] ?? (isHttps ? '443' : '80'), 10);
-      }
-
-      // Handle full URLs
-      const urlObj = new URL(url);
-      return urlObj.port ? parseInt(urlObj.port, 10) : isHttps ? 443 : 80;
-    } catch {
-      return isHttps ? 443 : 80;
-    }
   }
 
   /**
@@ -163,8 +52,8 @@ export class ProxyServer extends TypedEventEmitter<ProxyServerEvents> {
         isHttp,
         connectionId,
       }) => {
-        const targetHost = hostname || this.extractHostname(request.url || '');
-        const targetPort = port || this.extractPort(request.url || '', !isHttp);
+        const targetHost = hostname || extractHostname(request.url || '');
+        const targetPort = port || extractPort(request.url || '', !isHttp);
 
         // Track connection hostname for stats
         this.connectionHostnames.set(connectionId, targetHost);

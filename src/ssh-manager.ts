@@ -9,13 +9,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { createConnection } from 'node:net';
 import { TypedEventEmitter, type SSHManagerEvents } from './types.ts';
 import { logger } from './logger.ts';
-
-/**
- * Sleep for the specified duration
- */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+import { sleep } from './async-utils.ts';
 
 export interface SSHManagerState {
   isRunning: boolean;
