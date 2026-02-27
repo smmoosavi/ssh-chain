@@ -52,6 +52,13 @@ export class PluginManager implements PluginContext {
     if (this.plugins.has(plugin.name)) {
       throw new Error(`Plugin "${plugin.name}" is already registered`);
     }
+    // Wire up SSH manager to plugins that need it
+    if (
+      'setSSHManager' in plugin &&
+      typeof plugin.setSSHManager === 'function'
+    ) {
+      plugin.setSSHManager(this.sshManager);
+    }
     this.plugins.set(plugin.name, plugin);
     this.eventCleanups.set(plugin.name, []);
     this.currentPluginName = plugin.name;

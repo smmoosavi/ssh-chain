@@ -8,6 +8,7 @@ import { ByteUsageHistoryPlugin } from './byte-history-plugin.ts';
 import { ConsoleLoggerPlugin } from './logger-plugin.ts';
 import { BannerPlugin } from './banner-plugin.ts';
 import { FooterPlugin } from './footer-plugin.ts';
+import { KeyboardPlugin } from './keyboard-plugin.ts';
 
 /**
  * Create default plugins for standard functionality
@@ -28,5 +29,6 @@ export function createDefaultPlugins(
     new ConsoleLoggerPlugin(logLevel),
     new BannerPlugin(),
     footerPlugin,
+    new KeyboardPlugin(),
   ];
 }

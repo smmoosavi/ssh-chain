@@ -12,6 +12,7 @@ export {
   type ByteUsageSnapshot,
 } from './byte-history-plugin.ts';
 export { FooterPlugin } from './footer-plugin.ts';
+export { KeyboardPlugin } from './keyboard-plugin.ts';
 export { PluginManager } from './plugin-manager.ts';
 
 // Export factory functions
